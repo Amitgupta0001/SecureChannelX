@@ -1,146 +1,181 @@
-from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
-from app.database import get_db
+# FILE: backend/app/routes/auth.py
+
+from flask import Blueprint, request, current_app
+from flask_jwt_extended import (
+    jwt_required,
+    create_access_token,
+    get_jwt_identity
+)
 from bson import ObjectId
-from datetime import datetime
-from flask_bcrypt import Bcrypt
-import re
 
-auth_bp = Blueprint('auth', __name__, url_prefix="/api")
+# Correct imports — NO "backend.*" anywhere
+from app import bcrypt
+from app.database import get_db
 
+# Utils
+from app.utils.validators import validate_email, validate_username, validate_password
+from app.utils.response_builder import success, error
+from app.utils.helpers import now_utc
+
+auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 db = get_db()
-bcrypt = Bcrypt()
 
-# ------------------ User Helper Functions ------------------ #
 
+# ======================================================
+#                   USER MODEL HELPERS
+# ======================================================
 class User:
     @staticmethod
-    def find_by_username(username):
+    def find_by_username(username: str):
         return db.users.find_one({"username": username})
 
     @staticmethod
-    def find_by_email(email):
+    def find_by_email(email: str):
         return db.users.find_one({"email": email})
 
     @staticmethod
-    def find_by_id(user_id):
-        return db.users.find_one({"_id": ObjectId(user_id)})
+    def find_by_id(user_id: str):
+        try:
+            return db.users.find_one({"_id": ObjectId(user_id)})
+        except Exception:
+            return None
 
     @staticmethod
-    def create_user(data):
-        result = db.users.insert_one(data)
-        return result.inserted_id
+    def create(data: dict):
+        return db.users.insert_one(data).inserted_id
+
 
 class AuditLog:
     @staticmethod
-    def log_event(user_id, action, message):
+    def log(user_id, action, description):
         db.audit_logs.insert_one({
-            "user_id": user_id,
+            "user_id": str(user_id) if user_id else None,
             "action": action,
-            "message": message,
-            "timestamp": datetime.utcnow()
+            "description": description,
+            "timestamp": now_utc(),
         })
 
-# ------------------ REGISTER ------------------ #
 
-@auth_bp.route('/register', methods=['POST'])
+# ======================================================
+#                       REGISTER
+# ======================================================
+@auth_bp.route("/register", methods=["POST"])
 def register():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
 
-        if not data or not data.get("username") or not data.get("email") or not data.get("password"):
-            return jsonify({"error": "Missing required fields"}), 400
+        username = (data.get("username") or "").strip()
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password")
 
-        # Email validation
-        if not re.match(r"^[^@]+@[^@]+\.[^@]+$", data["email"]):
-            return jsonify({"error": "Invalid email format"}), 400
+        if not username or not email or not password:
+            return error("Missing required fields", 400)
 
-        # Username exists?
-        if User.find_by_username(data["username"]):
-            return jsonify({"error": "Username already exists"}), 409
+        if not validate_username(username):
+            return error("Invalid username format (3–20 chars)", 400)
 
-        # Email exists?
-        if User.find_by_email(data["email"]):
-            return jsonify({"error": "Email already exists"}), 409
+        if not validate_email(email):
+            return error("Invalid email format", 400)
 
-        # Secure password hash
-        hashed_pw = bcrypt.generate_password_hash(data["password"]).decode("utf-8")
+        if not validate_password(password):
+            return error("Weak password (uppercase, number, special char required)", 400)
 
-        user_data = {
-            "username": data["username"],
-            "email": data["email"],
-            "password": hashed_pw,       # STORE HASHED PASSWORD
-            "created_at": datetime.utcnow(),
-            "is_active": True
+        if User.find_by_username(username):
+            return error("Username already exists", 409)
+
+        if User.find_by_email(email):
+            return error("Email already registered", 409)
+
+        # Hash password using global bcrypt
+        hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+
+        new_user = {
+            "username": username,
+            "email": email,
+            "password": hashed_pw,
+            "created_at": now_utc(),
+            "is_active": True,
+            "two_factor_enabled": False,
+            "two_factor_secret": None,
         }
 
-        user_id = User.create_user(user_data)
+        user_id = User.create(new_user)
+        AuditLog.log(user_id, "REGISTER", "User registered")
 
-        AuditLog.log_event(str(user_id), "REGISTER", "User registered successfully")
-
-        return jsonify({
-            "message": "User registered successfully",
+        return success("User registered successfully", {
             "user_id": str(user_id)
-        }), 201
+        })
 
     except Exception as e:
-        current_app.logger.error(f"Registration error: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
+        current_app.logger.error(f"[REGISTER ERROR] {str(e)}")
+        return error("Internal server error", 500)
 
-# ------------------ LOGIN ------------------ #
 
-@auth_bp.route('/login', methods=['POST'])
+# ======================================================
+#                       LOGIN
+# ======================================================
+@auth_bp.route("/login", methods=["POST"])
 def login():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
 
-        if not data or not data.get("username") or not data.get("password"):
-            return jsonify({"error": "Username and password required"}), 400
+        username = (data.get("username") or "").strip()
+        password = data.get("password")
 
-        user = User.find_by_username(data["username"])
+        if not username or not password:
+            return error("Username and password required", 400)
 
+        user = User.find_by_username(username)
         if not user:
-            AuditLog.log_event(None, "LOGIN_FAILED", f"Invalid username: {data['username']}")
-            return jsonify({"error": "Invalid credentials"}), 401
+            AuditLog.log(None, "LOGIN_FAILED", f"Unknown username '{username}'")
+            return error("Invalid credentials", 401)
 
-        # Check password
-        if not bcrypt.check_password_hash(user["password"], data["password"]):
-            AuditLog.log_event(str(user["_id"]), "LOGIN_FAILED", "Wrong password")
-            return jsonify({"error": "Invalid credentials"}), 401
+        if not bcrypt.check_password_hash(user["password"], password):
+            AuditLog.log(user["_id"], "LOGIN_FAILED", "Bad password")
+            return error("Invalid credentials", 401)
 
-        # Generate JWT token
-        access_token = create_access_token(identity=str(user["_id"]))
+        token = create_access_token(
+            identity=str(user["_id"]),
+            additional_claims={
+                "username": user["username"],
+                "email": user["email"]
+            }
+        )
 
-        AuditLog.log_event(str(user["_id"]), "LOGIN_SUCCESS", "User logged in successfully")
+        AuditLog.log(user["_id"], "LOGIN_SUCCESS", "User logged in")
 
-        return jsonify({
-            "access_token": access_token,
+        return success("Login successful", {
+            "access_token": token,
             "user_id": str(user["_id"]),
             "username": user["username"]
-        }), 200
+        })
 
     except Exception as e:
-        current_app.logger.error(f"Login error: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
+        current_app.logger.error(f"[LOGIN ERROR] {str(e)}")
+        return error("Internal server error", 500)
 
-# ------------------ PROFILE ------------------ #
 
+# ======================================================
+#                        PROFILE
+# ======================================================
 @auth_bp.route("/profile", methods=["GET"])
 @jwt_required()
 def get_profile():
     try:
-        current_user_id = get_jwt_identity()
-        user = User.find_by_id(current_user_id)
+        user_id = get_jwt_identity()
+        user = User.find_by_id(user_id)
 
         if not user:
-            return jsonify({"error": "User not found"}), 404
+            return error("User not found", 404)
 
-        return jsonify({
+        return success(data={
             "user_id": str(user["_id"]),
             "username": user["username"],
-            "email": user["email"]
+            "email": user["email"],
+            "created_at": user["created_at"].isoformat(),
+            "two_factor_enabled": user.get("two_factor_enabled", False),
         })
 
     except Exception as e:
-        current_app.logger.error(f"Profile error: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
+        current_app.logger.error(f"[PROFILE ERROR] {str(e)}")
+        return error("Internal server error", 500)

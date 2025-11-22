@@ -10,54 +10,63 @@
     <title>SecureChannelX — Encrypted Messaging</title>
 
     <!-- Description -->
-    <meta name="description" 
-          content="SecureChannelX is a modern, end-to-end encrypted chat and file-sharing platform with post-quantum security." />
+    <meta name="description"
+        content="SecureChannelX is a modern, end-to-end encrypted chat and file-sharing platform with post-quantum security." />
 
-    <!-- ================================================================= -->
-    <!--              CROSS-BROWSER THEME COLOR SUPPORT                    -->
-    <!-- ================================================================= -->
+    <!-- ========================================================= -->
+    <!--                   THEME & APPEARANCE                      -->
+    <!-- ========================================================= -->
 
-    <!-- Chrome / Edge / Opera / Android -->
-    <!-- <meta name="theme-color" content="#0D1117" /> -->
+    <!-- Theme for Chrome / Edge / Android -->
+    <meta name="theme-color" content="#0D1117" />
 
-    <!-- Firefox (does NOT support theme-color) -->
-    <meta name="color-scheme" content="dark light" />
-
-    <!-- Windows (legacy Edge / PWA tile color) -->
-    <meta name="msapplication-TileColor" content="#0D1117" />
-    <meta name="msapplication-navbutton-color" content="#0D1117" />
-
-    <!-- iOS Safari (status bar style) -->
+    <!-- iOS PWA Status Bar -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <!-- ================================================================= -->
-    <!--              SECURITY-FOCUSED CLIENT-LEVEL HEADERS                -->
-    <!-- ================================================================= -->
+    <!-- Windows Tile -->
+    <meta name="msapplication-TileColor" content="#0D1117" />
+
+    <!-- Prefer dark UI -->
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- ========================================================= -->
+    <!--                SECURE CLIENT-SIDE HEADERS                 -->
+    <!-- ========================================================= -->
 
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="X-Frame-Options" content="DENY" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 
-    <!-- Open Graph (link preview when sharing) -->
+    <!-- Open Graph for Social Previews -->
     <meta property="og:title" content="SecureChannelX" />
-    <meta property="og:description" content="Military-grade encrypted chat & secure file sharing." />
+    <meta property="og:description" content="Military-grade encrypted messaging & secure file sharing." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/preview.png" />
 
-    <!-- Favicon & App Icons -->
+    <!-- ========================================================= -->
+    <!--                FAVICONS / ICONS / PWA                     -->
+    <!-- ========================================================= -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-
-    <!-- Manifest for PWA support -->
     <link rel="manifest" href="/manifest.json" />
+
+    <!-- Prevent flash of unstyled content -->
+    <style>
+        body {
+            background-color: #0D1117;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- React root -->
+    <!-- React root container -->
     <div id="root"></div>
 
-    <!-- Main entrypoint -->
+    <!-- Vite entrypoint -->
     <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

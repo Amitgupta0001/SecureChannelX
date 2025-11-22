@@ -1,67 +1,99 @@
+# 🔐 **SecureChannelX**
 
-# 🔐 SecureChannelX  
-A Modern, End-to-End Encrypted Chat & File Sharing Web App  
-Built with **React + Vite + Tailwind + Flask + Flask-SocketIO + MongoDB**
+### *A Modern, End-to-End Encrypted Messaging & File-Sharing Platform*
 
-SecureChannelX is a full-stack, military-grade secure communication platform designed for:
-- Encrypted messaging  
-- Encrypted file sharing  
-- Real-time chat  
-- Typing indicators  
-- Poll creation  
-- Emoji reactions  
-- Modern UI/UX  
-- WebRTC (optional module)  
-- PWA support (installable app)  
+Built with **React + Vite + Tailwind + Flask + Flask-SocketIO + MongoDB + Redis**
 
-This project implements **forward secrecy**, **post-quantum-ready encryption**, and **JWT-based authentication**.
+SecureChannelX is a **military-grade secure communication platform** supporting:
+
+* 🔒 End-to-end encrypted messaging
+* 📁 Encrypted file sharing
+* ⚡ Real-time chat via Socket.IO
+* 📱 Installable PWA
+* 📡 WebRTC voice/video calls
+* 🛡 Fully protected backend
+* 🔑 TOTP-based 2FA
+* ⚙ Modular, scalable architecture
+
+Designed for **security, speed, and modern UX**.
 
 ---
 
-# 🚀 Features
+# 🚀 **Features**
 
 ## 🔑 Authentication
-- JWT-based login & registration  
-- Secure password hashing using bcrypt  
-- Optional 2FA using TOTP (pyotp)
 
-## 💬 Real-time Chat
-- Socket.IO with safe fallback (polling → websocket)  
-- Online/offline indicators  
-- Typing indicators  
-- Message list + bubble UI  
-- Encrypted messages  
-- Room-based communication  
-
-## 📁 Encrypted File Sharing
-- File upload modal  
-- Secure backend file handling  
-- Preview before sending  
-
-## 😀 Chat Enhancements
-- Emoji picker (modal)  
-- Poll creation system  
-- Message search  
-- Smooth UI/UX  
-- Mobile-friendly  
-
-## 📱 PWA Support
-- Offline caching via Service Worker  
-- Installable on phone & desktop  
-- Manifest.json included  
-- Icons included  
-
-## 🔐 Security
-- End-to-end encryption pipeline  
-- Forward secrecy (ratchet compatible)  
-- Post-quantum support  
-- Secure JWT config  
-- Sanitized inputs  
-- CORS protection  
+* JWT authentication
+* Secure password hashing (bcrypt)
+* TOTP-based 2FA (Google Authenticator / Authy)
+* Session key rotation via socket
 
 ---
 
-# 📂 Project Structure
+## 💬 Messaging System
+
+* Real-time chat w/ Socket.IO
+* Typing indicators
+* Read receipts
+* Reactions (emoji)
+* Smart replies (AI-ready)
+* Threaded replies
+* Polls
+* Message search
+* Group chat system
+* Direct messaging (DM)
+
+---
+
+## 📁 File Sharing
+
+* Encrypted file uploads
+* Modal upload UI
+* Preview before sending
+* Secure backend storage
+
+---
+
+## 🧠 End-to-End Encryption (E2EE)
+
+* AES-256 client-side encryption
+* Forward secrecy mechanism
+* Key rotation
+* Optional post-quantum KEM (backend capable)
+
+---
+
+## 🎥 WebRTC Calling (Optional)
+
+* Voice calls
+* Video calls
+* Mute/camera toggle
+* ICE + STUN support
+
+---
+
+## 📱 Progressive Web App (PWA)
+
+* Offline caching
+* Installation prompt
+* Manifest + icons
+* Service worker
+
+---
+
+## 🔧 Admin & Security Tools
+
+* Admin dashboard
+* Security Center
+* Active devices
+* Session keys
+* Audit logs
+* Client-side error logging
+* Device fingerprinting
+
+---
+
+# 📂 **Project Structure**
 
 ```
 SecureChannelX/
@@ -72,14 +104,17 @@ SecureChannelX/
 │   ├── requirements.txt
 │   ├── app/
 │   │   ├── routes/
-│   │   ├── database/
 │   │   ├── models/
 │   │   ├── features/
-│   │   └── utils/
+│   │   ├── sockets/
+│   │   ├── utils/
+│   │   ├── security/
+│   │   └── encryption/
 │
 ├── frontend/
 │   ├── index.html
 │   ├── vite.config.js
+│   ├── .env
 │   ├── public/
 │   │   ├── manifest.json
 │   │   ├── service-worker.js
@@ -87,114 +122,156 @@ SecureChannelX/
 │   ├── src/
 │       ├── App.jsx
 │       ├── main.jsx
-│       ├── context/
+│       ├── contexts/
 │       ├── components/
 │       ├── pages/
+│       ├── hooks/
 │       ├── services/
+│       ├── sockets/
+│       ├── utils/
 │       └── styles/
 ```
 
 ---
 
-# ⚙️ Backend Setup
+# ⚙️ **Backend Setup**
 
-### 1️⃣ Create virtual environment
+### 1️⃣ Create venv
+
 ```bash
 cd backend
 python -m venv venv
-venv/Scripts/activate
+source venv/bin/activate   # macOS/Linux
+venv\Scripts\activate      # Windows
 ```
 
 ### 2️⃣ Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Clean `.env` file
-```
-SECRET_KEY=your-secure-secret-key
+### 3️⃣ Create `.env`
+
+```env
+SECRET_KEY=your-secret-key
 JWT_SECRET_KEY=your-jwt-secret-key
-MONGODB_URI=mongodb://localhost:27017/securechannelx
-REDIS_URL=redis://localhost:6379
+MONGO_URI=mongodb://localhost:27017/securechannelx
+REDIS_URL=redis://localhost:6379/0
+
+MAIL_SERVER=smtp.gmail.com
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
 ```
 
 ### 4️⃣ Run backend
+
 ```bash
 python app.py
 ```
 
-Backend runs at:
+Backend URL:
+
 ```
 http://localhost:5050
 ```
 
 ---
 
-# ⚙️ Frontend Setup
+# ⚙️ **Frontend Setup**
 
 ### 1️⃣ Install dependencies
+
 ```bash
 cd frontend
 npm install
 ```
 
-### 2️⃣ Add frontend `.env`
-```
-VITE_API_URL=http://localhost:5050
-VITE_WS_URL=http://localhost:5050
+### 2️⃣ Add `.env`
+
+```env
+VITE_API_BASE=http://localhost:5050
+VITE_SOCKET_URL=http://localhost:5050
 ```
 
-### 3️⃣ Run frontend
+### 3️⃣ Run dev server
+
 ```bash
 npm run dev
 ```
 
 Frontend runs at:
+
 ```
-http://localhost:5173
+http://localhost:3000
 ```
 
 ---
 
-# 🔌 Socket.IO Notes
+# 🔌 **Socket.IO Notes**
 
-- Backend uses `threading` mode (Python 3.14 compatible)
-- Werkzeug server fallback forces polling → websocket upgrade  
-- Frontend uses:
-```
-transports: ["polling", "websocket"]
+Frontend uses:
+
+```js
+io(VITE_SOCKET_URL, {
+  transports: ["websocket", "polling"],
+  auth: { token }
+});
 ```
 
-This guarantees:
-✔ Stable chat  
-✔ No crashes  
-✔ Correct connection lifecycle  
+Backend (Flask-SocketIO):
+
+* Uses **threading mode** → stable on Python 3.12–3.14
+* Supports:
+
+  * connection events
+  * typing
+  * message delivery
+  * reactions
+  * group events
+  * call signaling
+
+All integrated and tested.
 
 ---
 
-# 📱 PWA Features
+# 📱 **PWA Included**
 
-Project includes:
+### ✔ `manifest.json`
 
-- `/public/manifest.json`  
-- `/public/service-worker.js`  
-- Icons  
-- Auto-registration  
+### ✔ `service-worker.js`
 
-You can install SecureChannelX on laptop or phone.
+### ✔ Installable on Android / Desktop
+
+### ✔ Offline caching
+
+### ✔ Push notifications (optional)
+
+---
+
+# 🛡 Security Highlights
+
+* End-to-end AES-256 encryption
+* PBKDF2-based key derivation
+* JWT with refresh support
+* Secure error logging
+* Device management
+* IP + device audit logs
+* Rate limiting (backend supported)
 
 ---
 
 # 👨‍💻 Developer
 
-**Amit Kumar Gupta**  
-Full-stack engineer • Security researcher  
-Creator of SecureChannelX  
+**Amit Kumar Gupta**
+Full-stack Engineer • Security Researcher
+Creator of SecureChannelX
 
 ---
 
 # 📜 License
-For educational, academic, and portfolio use.
+
+Released for **learning, academic, and portfolio use**.
 
 ---
 
@@ -202,11 +279,27 @@ For educational, academic, and portfolio use.
 
 SecureChannelX is now:
 
-✔ Fully working  
-✔ Clean  
-✔ Real-time enabled  
-✔ Secure  
-✔ Mobile compatible  
-✔ PWA-ready  
+✔ Fully working
+✔ Real-time enabled
+✔ Secure & encrypted
+✔ Supports groups & DM
+✔ Modern UI (React + Tailwind)
+✔ WebRTC ready
+✔ PWA installable
+✔ Production-grade architecture
 
-If you want a **deployment guide, Dockerfile, or architecture diagram**, just ask!
+---
+
+If you want, I can also generate:
+
+### 📦 Docker Compose
+
+### ☁️ Nginx + Certbot deployment
+
+### 📈 Architecture diagram
+
+### 📡 Load-balancing setup
+
+### 💬 README with badges
+
+Just say **“Deployment Guide”** or **“Generate Docker setup”**.
