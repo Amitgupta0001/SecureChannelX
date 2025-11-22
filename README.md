@@ -289,17 +289,3 @@ SecureChannelX is now:
 ✔ Production-grade architecture
 
 ---
-
-If you want, I can also generate:
-
-### 📦 Docker Compose
-
-### ☁️ Nginx + Certbot deployment
-
-### 📈 Architecture diagram
-
-### 📡 Load-balancing setup
-
-### 💬 README with badges
-
-Just say **“Deployment Guide”** or **“Generate Docker setup”**.
