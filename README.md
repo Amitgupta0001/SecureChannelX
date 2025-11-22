@@ -167,7 +167,7 @@ MAIL_PASSWORD=your-app-password
 ### 4️⃣ Run backend
 
 ```bash
-python app.py
+python run.py
 ```
 
 Backend URL:
