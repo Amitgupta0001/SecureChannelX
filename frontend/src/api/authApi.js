@@ -1,7 +1,8 @@
 // FILE: src/api/authApi.js
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000/api";
+const API = `${API_BASE}/api/auth`;
 
 export default {
   // -------------------------------
@@ -14,7 +15,7 @@ export default {
       email,
       password,
     });
-    return res.data; 
+    return res.data;
     /*
       {
         message: "User registered successfully",
@@ -51,7 +52,7 @@ export default {
     const res = await axios.get(`${API}/profile`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data;
+    return res.data.data;
     /*
       {
         user_id: "...",
@@ -68,7 +69,7 @@ export default {
   // -------------------------------
   async logout(token) {
     const res = await axios.post(
-      `${API}/logout`,
+      `${API_BASE}/api/security/logout`,
       {},
       {
         headers: { Authorization: `Bearer ${token}` },
@@ -78,5 +79,30 @@ export default {
     /*
       { message: "Logged out successfully" }
     */
+    return res.data.data;
+    /*
+      { message: "Logged out successfully" }
+    */
+  },
+
+  // -------------------------------
+  // FORGOT PASSWORD
+  // POST /api/forgot-password
+  // -------------------------------
+  async forgotPassword(email) {
+    const res = await axios.post(`${API}/forgot-password`, { email });
+    return res.data; // { success: true, message: "..." }
+  },
+
+  // -------------------------------
+  // RESET PASSWORD
+  // POST /api/reset-password
+  // -------------------------------
+  async resetPassword(token, password) {
+    const res = await axios.post(`${API}/reset-password`, {
+      token,
+      password,
+    });
+    return res.data; // { success: true, message: "..." }
   },
 };

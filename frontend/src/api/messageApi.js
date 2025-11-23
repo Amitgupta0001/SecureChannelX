@@ -1,7 +1,6 @@
 // FILE: src/api/messageApi.js
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import { API_BASE as API } from "../utils/constants";
 
 export default {
   // -------------------------------------------------------
@@ -15,7 +14,7 @@ export default {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
-    return res.data;
+    return res.data.data;
     /*
       {
         messages: [...],
@@ -36,7 +35,7 @@ export default {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    return res.data;
+    return res.data.data;
     /*
       { results: [...] }
     */
@@ -55,7 +54,7 @@ export default {
       }
     );
 
-    return res.data;
+    return res.data.data;
     /*
       { message: "Message updated successfully" }
     */
@@ -70,7 +69,7 @@ export default {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    return res.data;
+    return res.data.data;
     /*
       { message: "Message deleted successfully" }
     */
@@ -89,7 +88,7 @@ export default {
       }
     );
 
-    return res.data;
+    return res.data.data;
     /*
       { message: "...", thread_id: "..." }
     */
@@ -107,7 +106,7 @@ export default {
       }
     );
 
-    return res.data;
+    return res.data.data;
     /*
       { thread: [...] }
     */
@@ -119,14 +118,14 @@ export default {
   // -------------------------------------------------------
   async addReaction(messageId, emoji, token) {
     const res = await axios.post(
-      `${API}/add`,
+      `${API}/api/reactions/add`,
       { message_id: messageId, emoji },
       {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
 
-    return res.data; // { ok: true }
+    return res.data.data; // { ok: true }
   },
 
   // -------------------------------------------------------
@@ -135,7 +134,7 @@ export default {
   // -------------------------------------------------------
   async markSeen(messageId, chatId, token) {
     const res = await axios.post(
-      `${API}/mark_seen`,
+      `${API}/api/read/mark_seen`,
       {
         message_id: messageId,
         chat_id: chatId,
@@ -145,7 +144,7 @@ export default {
       }
     );
 
-    return res.data; // { ok: true }
+    return res.data.data; // { ok: true }
   },
 
   // -------------------------------------------------------

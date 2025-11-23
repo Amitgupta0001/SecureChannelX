@@ -1,7 +1,8 @@
 // FILE: src/api/dmApi.js
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const API = API_BASE;
 
 export default {
   // -------------------------------------------------------
@@ -11,7 +12,7 @@ export default {
   // -------------------------------------------------------
   async openDM(otherUserId, token) {
     const res = await axios.post(
-      `${API}/dm/open/${otherUserId}`,
+      `${API}/api/direct/open/${otherUserId}`,
       {},
       {
         headers: { Authorization: `Bearer ${token}` },
@@ -37,7 +38,7 @@ export default {
   // Fetch entire DM chat history sorted oldest → newest
   // -------------------------------------------------------
   async getDMMessages(otherUserId, token) {
-    const res = await axios.get(`${API}/dm/room/${otherUserId}`, {
+    const res = await axios.get(`${API}/api/direct/room/${otherUserId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 

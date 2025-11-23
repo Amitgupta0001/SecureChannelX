@@ -1,7 +1,8 @@
 // FILE: src/api/notificationsApi.js
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const API = API_BASE;
 
 export default {
   // -------------------------------------------------------
@@ -11,14 +12,14 @@ export default {
   // -------------------------------------------------------
   async registerPushToken(pushToken, token) {
     const res = await axios.post(
-      `${API}/notifications/register_token`,
+      `${API}/api/notifications/register_token`,
       { token: pushToken },
       {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
 
-    return res.data; 
+    return res.data;
     /*
       { ok: true }
     */
@@ -31,7 +32,7 @@ export default {
   // -------------------------------------------------------
   async sendNotification(userId, title, body, token) {
     const res = await axios.post(
-      `${API}/notifications/send`,
+      `${API}/api/notifications/send`,
       {
         user_id: userId,
         title,

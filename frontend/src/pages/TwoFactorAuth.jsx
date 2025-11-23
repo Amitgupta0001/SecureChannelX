@@ -8,7 +8,7 @@ export default function TwoFactorAuth() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   const { verify2FA, requires2FA, tempToken, user } = useAuth();
   const navigate = useNavigate();
 
@@ -16,7 +16,7 @@ export default function TwoFactorAuth() {
       If user is already logged in → redirect
   -------------------------------------------------------- */
   useEffect(() => {
-    if (user) navigate("/chat");
+    if (user) navigate("/");
   }, [user, navigate]);
 
   /* -------------------------------------------------------
@@ -45,7 +45,7 @@ export default function TwoFactorAuth() {
     setLoading(false);
 
     if (res?.success) {
-      navigate("/chat");
+      navigate("/");
     } else {
       setError(res?.error || "Invalid verification code.");
     }

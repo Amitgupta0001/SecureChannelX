@@ -36,10 +36,10 @@ class Database:
             # Build indexes for HIGH performance
             self.create_indexes()
 
-            print("✅ MongoDB connected successfully")
+            print("[INFO] MongoDB connected successfully")
 
         except (ConnectionFailure, ServerSelectionTimeoutError) as e:
-            print(f"❌ MongoDB connection failed: {str(e)}")
+            print(f"[ERROR] MongoDB connection failed: {str(e)}")
             raise
 
     # --------------------------------------------------------------------
@@ -105,10 +105,10 @@ class Database:
             self.db.calls.create_index("receiver_id")
             self.db.calls.create_index("started_at")
 
-            print("✅ Database indexes created successfully")
+            print("[INFO] Database indexes created successfully")
 
         except Exception as e:
-            print(f"⚠️ Index creation warning: {str(e)}")
+            print(f"[WARNING] Index creation warning: {str(e)}")
 
 # --------------------------------------------------------------------
 # PUBLIC ACCESSORS

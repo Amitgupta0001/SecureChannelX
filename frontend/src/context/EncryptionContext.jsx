@@ -24,10 +24,11 @@ export const useEncryption = () => {
 // ---------------------
 // Helper functions
 // ---------------------
-
+// NOTE: Browser WebCrypto supports only: P-256, P-384, P-521
+// We will use P-256 for ECDH
 async function generateKeyPair() {
   return await window.crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "X25519" },
+    { name: "ECDH", namedCurve: "P-256" },
     true,
     ["deriveKey"]
   );
@@ -96,6 +97,7 @@ export const EncryptionProvider = ({ children }) => {
       let stored = localStorage.getItem(`scx_keypair_${user.id}`);
 
       if (!stored) {
+        // NEW KEYPAIR
         const kp = await generateKeyPair();
         const pub = await crypto.subtle.exportKey("jwk", kp.publicKey);
         const priv = await crypto.subtle.exportKey("jwk", kp.privateKey);
@@ -107,12 +109,13 @@ export const EncryptionProvider = ({ children }) => {
 
         setKeys({ privateKey: kp.privateKey, publicKey: kp.publicKey });
       } else {
+        // IMPORT EXISTING KEYPAIR
         const parsed = JSON.parse(stored);
 
         const privateKey = await crypto.subtle.importKey(
           "jwk",
           parsed.priv,
-          { name: "ECDH", namedCurve: "X25519" },
+          { name: "ECDH", namedCurve: "P-256" },   // ✅ FIX
           true,
           ["deriveKey"]
         );
@@ -120,7 +123,7 @@ export const EncryptionProvider = ({ children }) => {
         const publicKey = await crypto.subtle.importKey(
           "jwk",
           parsed.pub,
-          { name: "ECDH", namedCurve: "X25519" },
+          { name: "ECDH", namedCurve: "P-256" },   // ✅ FIX
           true,
           []
         );
@@ -139,7 +142,7 @@ export const EncryptionProvider = ({ children }) => {
     const peerPubKey = await crypto.subtle.importKey(
       "jwk",
       peerPublicKeyJWK,
-      { name: "ECDH", namedCurve: "X25519" },
+      { name: "ECDH", namedCurve: "P-256" },    // ✅ FIX
       true,
       []
     );

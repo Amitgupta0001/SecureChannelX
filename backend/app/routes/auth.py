@@ -16,6 +16,9 @@ from app.database import get_db
 from app.utils.validators import validate_email, validate_username, validate_password
 from app.utils.response_builder import success, error
 from app.utils.helpers import now_utc
+from app.utils.email import send_email
+from datetime import timedelta
+from flask_jwt_extended import decode_token
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 db = get_db()
@@ -134,6 +137,18 @@ def login():
             AuditLog.log(user["_id"], "LOGIN_FAILED", "Bad password")
             return error("Invalid credentials", 401)
 
+        # 2FA CHECK
+        if user.get("two_factor_enabled"):
+            temp_token = create_access_token(
+                identity=str(user["_id"]),
+                additional_claims={"type": "2fa_temp"},
+                expires_delta=False  # defaults to config (24h), maybe should be shorter but fine for now
+            )
+            return success("2FA required", {
+                "two_factor_required": True,
+                "temp_token": temp_token
+            })
+
         token = create_access_token(
             identity=str(user["_id"]),
             additional_claims={
@@ -146,12 +161,108 @@ def login():
 
         return success("Login successful", {
             "access_token": token,
-            "user_id": str(user["_id"]),
-            "username": user["username"]
+            "user": {
+                "id": str(user["_id"]),
+                "username": user["username"],
+                "email": user["email"]
+            }
         })
 
     except Exception as e:
         current_app.logger.error(f"[LOGIN ERROR] {str(e)}")
+        return error("Internal server error", 500)
+
+
+# ======================================================
+#                   FORGOT PASSWORD
+# ======================================================
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    try:
+        data = request.get_json() or {}
+        email = (data.get("email") or "").strip().lower()
+
+        if not email:
+            return error("Email is required", 400)
+
+        user = User.find_by_email(email)
+        if not user:
+            # Security: Don't reveal if user exists
+            return success("If an account exists, a reset link has been sent.")
+
+        # Generate reset token (short lived - 15 mins)
+        reset_token = create_access_token(
+            identity=str(user["_id"]),
+            additional_claims={"type": "reset"},
+            expires_delta=timedelta(minutes=15)
+        )
+
+        reset_link = f"http://localhost:5173/reset-password/{reset_token}"
+        
+        body = f"""Hello {user['username']},
+
+You requested a password reset. Click the link below to reset your password:
+
+{reset_link}
+
+This link expires in 15 minutes.
+
+If you did not request this, please ignore this email.
+"""
+
+        send_email(email, "Password Reset Request", body)
+
+        AuditLog.log(user["_id"], "PASSWORD_RESET_REQUEST", "Reset link sent")
+
+        return success("If an account exists, a reset link has been sent.")
+
+    except Exception as e:
+        current_app.logger.error(f"[FORGOT PASSWORD ERROR] {str(e)}")
+        return error("Internal server error", 500)
+
+
+# ======================================================
+#                   RESET PASSWORD
+# ======================================================
+@auth_bp.route("/reset-password", methods=["POST"])
+def reset_password():
+    try:
+        data = request.get_json() or {}
+        token = data.get("token")
+        new_password = data.get("password")
+
+        if not token or not new_password:
+            return error("Token and new password required", 400)
+
+        if not validate_password(new_password):
+            return error("Weak password (uppercase, number, special char required)", 400)
+
+        # Verify token
+        try:
+            decoded = decode_token(token)
+            if decoded.get("type") != "reset":
+                return error("Invalid token type", 400)
+            
+            user_id = decoded["sub"]
+        except Exception:
+            return error("Invalid or expired token", 400)
+
+        # Update password
+        hashed_pw = bcrypt.generate_password_hash(new_password).decode("utf-8")
+        
+        db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"password": hashed_pw}}
+        )
+
+        # Invalidate all sessions? (Optional, but good practice)
+        # For now just log it
+        AuditLog.log(user_id, "PASSWORD_RESET_SUCCESS", "Password updated successfully")
+
+        return success("Password reset successfully")
+
+    except Exception as e:
+        current_app.logger.error(f"[RESET PASSWORD ERROR] {str(e)}")
         return error("Internal server error", 500)
 
 

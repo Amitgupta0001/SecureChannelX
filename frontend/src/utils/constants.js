@@ -5,12 +5,12 @@
    BASE URLs (API + SOCKET)
 --------------------------------------------------------- */
 export const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://localhost:5000";
+  import.meta.env.VITE_API_BASE || "http://localhost:5050";
 
 export const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
   import.meta.env.VITE_API_BASE ||
-  "http://localhost:5000";
+  "http://localhost:5050";
 
 /* ---------------------------------------------------------
    STORAGE KEYS (localStorage)

@@ -1,8 +1,7 @@
 // FILE: src/services/chatService.js
 
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import { API_BASE as API } from "../utils/constants";
 
 /** Auth header */
 const auth = () => ({
@@ -15,7 +14,7 @@ const auth = () => ({
 export async function fetchChats() {
   try {
     const res = await axios.get(`${API}/chats/list`, auth());
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("fetchChats error:", err.response?.data || err);
     return { error: "Failed to load chat list" };
@@ -28,7 +27,7 @@ export async function fetchChats() {
 export async function createChat(data) {
   try {
     const res = await axios.post(`${API}/chats/create`, data, auth());
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("createChat error:", err.response?.data || err);
     return { error: "Failed to create chat" };
@@ -41,7 +40,7 @@ export async function createChat(data) {
 export async function openChat(chatId) {
   try {
     const res = await axios.get(`${API}/chats/${chatId}`, auth());
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("openChat error:", err.response?.data || err);
     return { error: "Failed to open chat" };
@@ -57,7 +56,7 @@ export async function searchChats(query) {
       `${API}/chats/search?q=${encodeURIComponent(query)}`,
       auth()
     );
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("searchChats error:", err.response?.data || err);
     return { error: "Search failed" };
@@ -74,7 +73,7 @@ export async function pinChat(chatId, pin = true) {
       { pin },
       auth()
     );
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("pinChat error:", err.response?.data || err);
     return { error: "Failed to pin chat" };
@@ -91,7 +90,7 @@ export async function renameChat(chatId, title) {
       { title },
       auth()
     );
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("renameChat error:", err.response?.data || err);
     return { error: "Failed to rename chat" };
@@ -104,7 +103,7 @@ export async function renameChat(chatId, title) {
 export async function deleteChat(chatId) {
   try {
     const res = await axios.delete(`${API}/chats/${chatId}`, auth());
-    return res.data;
+    return res.data.data;
   } catch (err) {
     console.error("deleteChat error:", err.response?.data || err);
     return { error: "Failed to delete chat" };

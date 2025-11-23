@@ -1,14 +1,26 @@
 // FILE: src/components/ChatList.jsx
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
+import NewChatModal from "./NewChatModal";
 
-export default function ChatList({ chats, onSelect, activeChatId }) {
+export default function ChatList({ chats, onSelect, activeChatId, onChatCreated }) {
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+
+  const handleChatCreated = (newChat) => {
+    console.log("✅ New chat created:", newChat);
+    if (onChatCreated) onChatCreated();
+    setShowNewChatModal(false);
+  };
+
   return (
     <div className="h-full w-full bg-[#0D1117] text-white overflow-y-auto select-none">
       {/* Header */}
       <div className="p-4 backdrop-blur-md sticky top-0 bg-[#0d1117cc] z-20 border-b border-[#1f2937] flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-wide">Chats</h2>
-        <button className="px-3 py-1.5 text-sm bg-[#1f6feb] rounded-lg hover:bg-[#2563eb] transition">
+        <button
+          onClick={() => setShowNewChatModal(true)}
+          className="px-3 py-1.5 text-sm bg-[#1f6feb] rounded-lg hover:bg-[#2563eb] transition"
+        >
           +
         </button>
       </div>
@@ -73,6 +85,13 @@ export default function ChatList({ chats, onSelect, activeChatId }) {
           );
         })}
       </div>
+
+      {/* New Chat Modal */}
+      <NewChatModal
+        isOpen={showNewChatModal}
+        onClose={() => setShowNewChatModal(false)}
+        onChatCreated={handleChatCreated}
+      />
     </div>
   );
 }

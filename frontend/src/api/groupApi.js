@@ -1,79 +1,57 @@
 // FILE: src/api/groupApi.js
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import { API_BASE as API } from "../utils/constants";
 
 export default {
+
   // -------------------------------------------------------
-  // 1️⃣ CREATE GROUP
-  // POST /groups/create
-  // Body: { title, members }
+  // CREATE GROUP
+  // POST http://localhost:5050/api/groups/create
   // -------------------------------------------------------
   async createGroup(title, members, token, description = null) {
     const res = await axios.post(
-      `${API}/groups/create`,
-      {
-        title,
-        members,
-        description,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      `${API}/api/groups/create`,
+      { title, members, description },
+      { headers: { Authorization: `Bearer ${token}` } }
     );
-
-    return res.data;
-    /*
-      {
-        group: {...},
-        chat_id: "<linked_chat_id>"
-      }
-    */
+    return res.data.data;
   },
 
   // -------------------------------------------------------
-  // 2️⃣ ADD MEMBER TO GROUP
-  // POST /groups/:group_id/add
-  // Body: { member_id }
+  // ADD MEMBER
+  // POST http://localhost:5050/api/groups/:group_id/add
   // -------------------------------------------------------
   async addMember(groupId, memberId, token) {
     const res = await axios.post(
-      `${API}/groups/${groupId}/add`,
-      {
-        member_id: memberId,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      `${API}/api/groups/${groupId}/add`,
+      { member_id: memberId },
+      { headers: { Authorization: `Bearer ${token}` } }
     );
-
-    return res.data; // { ok: true }
+    return res.data.data;
   },
 
   // -------------------------------------------------------
-  // 3️⃣ SOCKET HELPERS (Join/Leave Group Room)
-  // Groups use chat rooms: "chat:<chat_id>"
+  // LIST USER GROUPS
+  // GET http://localhost:5050/api/groups/list
   // -------------------------------------------------------
-
-  joinGroupRoom(socket, chatId, userId) {
-    socket.emit("join_chat", {
-      chat_id: chatId,
-      user_id: userId,
+  async getAllGroups(token) {
+    const res = await axios.get(`${API}/api/groups/list`, {
+      headers: { Authorization: `Bearer ${token}` },
     });
+    return res.data.data;
+  },
+
+  // -------------------------------------------------------
+  // SOCKET HELPERS
+  // -------------------------------------------------------
+  joinGroupRoom(socket, chatId, userId) {
+    socket.emit("join_chat", { chat_id: chatId, user_id: userId });
   },
 
   leaveGroupRoom(socket, chatId, userId) {
-    socket.emit("leave_chat", {
-      chat_id: chatId,
-      user_id: userId,
-    });
+    socket.emit("leave_chat", { chat_id: chatId, user_id: userId });
   },
 
-  // -------------------------------------------------------
-  // 4️⃣ CREATE GROUP ANNOUNCEMENT
-  // Uses socket event: "group:create"
-  // Defined in backend/socket/group_events.py
-  // -------------------------------------------------------
   createGroupViaSocket(socket, title, members, createdBy, description = "") {
     socket.emit("group:create", {
       title,
@@ -83,10 +61,6 @@ export default {
     });
   },
 
-  // -------------------------------------------------------
-  // 5️⃣ ADD MEMBER VIA SOCKET
-  // Uses event: "group:add_member"
-  // -------------------------------------------------------
   addMemberViaSocket(socket, groupId, memberId, addedBy) {
     socket.emit("group:add_member", {
       group_id: groupId,
@@ -95,13 +69,6 @@ export default {
     });
   },
 
-  // -------------------------------------------------------
-  // 6️⃣ LISTENING HELPERS (Frontend)
-  // Backend emits:
-  //  - "group:created"
-  //  - "group:invited"
-  //  - "group:member_added"
-  // -------------------------------------------------------
   onGroupCreated(socket, callback) {
     socket.on("group:created", callback);
   },

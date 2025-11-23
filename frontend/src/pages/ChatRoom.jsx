@@ -1,5 +1,4 @@
 // FILE: src/pages/ChatRoom.jsx
-
 import React, { useState, useEffect } from "react";
 import useChats from "../hooks/useChats";
 import useMessages from "../hooks/useMessages";
@@ -21,7 +20,7 @@ export default function ChatRoom() {
     typingUsers,
   } = useChats();
 
-  const { socket, emit } = useSocket();
+  const { socket, emit } = useSocket(); // currently unused but kept for future extensions
 
   const {
     decryptedMessages,
@@ -35,20 +34,15 @@ export default function ChatRoom() {
   const [showSearch, setShowSearch] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
-  /* -----------------------------------------------------
-       AUTO MARK MESSAGES AS SEEN WHEN CHAT OPENS
-  ------------------------------------------------------ */
+  // Mark messages as seen when a chat becomes active
   useEffect(() => {
     if (activeChatId) {
       markAsSeen();
     }
   }, [activeChatId, messages]);
 
-  /* -----------------------------------------------------
-       MOBILE SIDEBAR HANDLING
-  ------------------------------------------------------ */
+  // Mobile sidebar handling
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
   const handleChatSelect = (chatId) => {
     openChat(chatId);
     setSidebarOpen(false);
@@ -58,14 +52,13 @@ export default function ChatRoom() {
     <div className="flex h-screen bg-[#0D1117] text-white">
       {/* ---------------- SIDEBAR ---------------- */}
       <div
-        className={`${
-          sidebarOpen ? "w-80" : "w-0 lg:w-80"
-        } transition-all bg-[#111827] border-r border-[#1f2937] overflow-hidden`}
+        className={`${sidebarOpen ? "w-80" : "w-0 lg:w-80"} transition-all bg-[#111827] border-r border-[#1f2937] overflow-hidden`}
       >
         <ChatList
           chats={sidebarChats}
           activeChatId={activeChatId}
           onSelect={handleChatSelect}
+          onChatCreated={reloadChats}
         />
       </div>
 

@@ -13,6 +13,8 @@ import { CallProvider } from "./context/CallContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import TwoFactorAuth from "./pages/TwoFactorAuth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 import ChatRoom from "./pages/ChatRoom";
 import DirectMessagePage from "./pages/DirectMessagePage";
@@ -20,10 +22,7 @@ import GroupPage from "./pages/GroupPage";
 import CallsPage from "./pages/CallsPage";
 
 import Profile from "./pages/Profile";
-// import SecurityDashboard from "./pages/SecurityDashboard";
 import Devices from "./pages/Devices";
-
-// import AdminDashboard from "./pages/AdminDashboard";
 
 import LoadingSpinner from "./components/LoadingSpinner";
 
@@ -34,18 +33,14 @@ import "./styles/App.css";
 ----------------------------------------------------- */
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  console.log("🟣 ProtectedRoute check - loading:", loading, "user:", user);
   if (loading) return <LoadingSpinner />;
-  return user ? children : <Navigate to="/login" replace />;
-};
-
-const AdminRoute = ({ children }) => {
-  const { user, loading } = useAuth();
-  if (loading) return <LoadingSpinner />;
-
-  // In production → check user.role === "admin"
-  if (user && user.is_admin) return children;
-
-  return <Navigate to="/" replace />;
+  if (!user) {
+    console.log("🔴 No user, redirecting to /login");
+    return <Navigate to="/login" replace />;
+  }
+  console.log("✅ User authenticated, rendering protected content");
+  return children;
 };
 
 /* -----------------------------------------------------
@@ -66,6 +61,8 @@ export default function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/2fa" element={<TwoFactorAuth />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password/:token" element={<ResetPassword />} />
 
                     {/* MAIN APP ROUTES */}
                     <Route
@@ -117,16 +114,6 @@ export default function App() {
                       }
                     />
 
-                    {/* SECURITY CENTER */}
-                    <Route
-                      path="/security"
-                      element={
-                        <ProtectedRoute>
-                          <SecurityDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-
                     {/* ACTIVE DEVICES */}
                     <Route
                       path="/devices"
@@ -134,16 +121,6 @@ export default function App() {
                         <ProtectedRoute>
                           <Devices />
                         </ProtectedRoute>
-                      }
-                    />
-
-                    {/* ADMIN */}
-                    <Route
-                      path="/admin"
-                      element={
-                        <AdminRoute>
-                          <AdminDashboard />
-                        </AdminRoute>
                       }
                     />
 

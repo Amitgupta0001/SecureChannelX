@@ -33,30 +33,50 @@ export const ChatProvider = ({ children }) => {
   const { socket, safeEmit } = useSocket();
   const { user } = useAuth();
 
+  const token =
+    user?.access_token ||
+    localStorage.getItem("access_token") ||
+    null;
+
   /* -------------------------------------------------------
        LOAD CHATS
   -------------------------------------------------------- */
   const loadChats = useCallback(async () => {
     try {
-      const res = await chatApi.getAllChats();
-      setChats(res.chats || []);
+      console.log("🟦 ChatContext.loadChats called, token:", token?.substring(0, 20) + "...");
+      if (!token) return console.warn("No token available to load chats");
+
+      const res = await chatApi.getAllChats(token);
+      console.log("🟦 ChatContext.loadChats response:", res);
+
+      // Backend returns res.data.data.chats, but chatApi.getAllChats already unwraps to res.data
+      // So we expect res to be the data object: {chats: [...]}
+      const chatsList = res?.chats || res || [];
+      console.log("🟦 ChatContext setting chats:", chatsList);
+
+      setChats(chatsList);
     } catch (err) {
-      console.warn("Failed to load chats:", err);
+      console.error("🔴 Failed to load chats:", err);
+      console.error("🔴 Error response:", err.response?.data);
     }
-  }, []);
+  }, [token]);
 
   /* -------------------------------------------------------
        LOAD CHAT MESSAGES
   -------------------------------------------------------- */
-  const loadMessages = useCallback(async (chatId) => {
-    setLoadingMessages(true);
-    try {
-      const res = await messageApi.getMessages(chatId);
-      setMessages(res.messages || []);
-    } finally {
-      setLoadingMessages(false);
-    }
-  }, []);
+  const loadMessages = useCallback(
+    async (chatId) => {
+      setLoadingMessages(true);
+      try {
+        if (!token) return;
+        const res = await messageApi.getMessages(chatId, token);
+        setMessages(res.messages || []);
+      } finally {
+        setLoadingMessages(false);
+      }
+    },
+    [token]
+  );
 
   /* -------------------------------------------------------
        OPEN CHAT + JOIN ROOM
@@ -81,7 +101,8 @@ export const ChatProvider = ({ children }) => {
   -------------------------------------------------------- */
   const sendMessage = async (chatId, data) => {
     try {
-      const res = await messageApi.sendMessage(chatId, data);
+      if (!token) return console.error("Missing token for sendMessage");
+      const res = await messageApi.sendMessage(chatId, data, token);
 
       if (res?.message) {
         setMessages((prev) => [...prev, res.message]);
@@ -128,22 +149,17 @@ export const ChatProvider = ({ children }) => {
   };
 
   /* -------------------------------------------------------
-       HANDLE TYPING START
+       HANDLE TYPING START/STOP
   -------------------------------------------------------- */
   const handleTypingStart = ({ chat_id, user_id }) => {
     if (chat_id !== activeChatId) return;
-
     setTypingUsers((prev) =>
       prev.includes(user_id) ? prev : [...prev, user_id]
     );
   };
 
-  /* -------------------------------------------------------
-       HANDLE TYPING STOP
-  -------------------------------------------------------- */
   const handleTypingStop = ({ chat_id, user_id }) => {
     if (chat_id !== activeChatId) return;
-
     setTypingUsers((prev) => prev.filter((id) => id !== user_id));
   };
 
@@ -165,15 +181,18 @@ export const ChatProvider = ({ children }) => {
       onTypingStart: handleTypingStart,
       onTypingStop: handleTypingStop,
     });
-
   }, [socket, activeChatId]);
 
   /* -------------------------------------------------------
        INITIAL LOAD
   -------------------------------------------------------- */
+  const { access_token } = useAuth();
+
   useEffect(() => {
+    if (!token) return; // do NOT fetch chats until logged in
     loadChats();
-  }, [loadChats]);
+  }, [token, loadChats]);
+
 
   /* -------------------------------------------------------
        PROVIDER

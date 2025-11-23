@@ -1,16 +1,16 @@
 // FILE: src/api/chatApi.js
 import axios from "axios";
-
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+import { API_BASE as API } from "../utils/constants";
 
 export default {
+
   // ---------------------------------------------------------
   // CREATE CHAT
-  // POST /chats/create
+  // POST http://localhost:5050/api/chats/create
   // ---------------------------------------------------------
   async createChat(chatType, participants, title, token) {
     const body = {
-      chat_type: chatType, // "private" | "group"
+      chat_type: chatType,
       participants,
     };
 
@@ -18,55 +18,43 @@ export default {
       body.title = title;
     }
 
-    const res = await axios.post(`${API}/chats/create`, body, {
+    const res = await axios.post(`${API}/api/chats/create`, body, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    return res.data;
-    /*
-      {
-        chat: {
-          _id, chat_type, participants, title, ...
-        }
-      }
-    */
+    return res.data.data;
   },
 
   // ---------------------------------------------------------
   // LIST USER CHATS
-  // GET /chats/list
+  // GET http://localhost:5050/api/chats/list
   // ---------------------------------------------------------
   async listChats(token) {
-    const res = await axios.get(`${API}/chats/list`, {
+    const res = await axios.get(`${API}/api/chats/list`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    return res.data.data;
+  },
 
-    return res.data;
-    /*
-      { chats: [ ... ] }
-    */
+  // For ChatContext compatibility
+  async getAllChats(token) {
+    return await this.listChats(token);
   },
 
   // ---------------------------------------------------------
   // GET CHAT INFO
-  // GET /chats/:chat_id
+  // GET http://localhost:5050/api/chats/:chat_id
   // ---------------------------------------------------------
   async getChat(chatId, token) {
-    const res = await axios.get(`${API}/chats/${chatId}`, {
+    const res = await axios.get(`${API}/api/chats/${chatId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
-    return res.data;
-    /*
-      { chat: { ...chatData } }
-    */
+    return res.data.data;
   },
 
   // ---------------------------------------------------------
-  // SOCKET HELPERS (Not backend REST but required for chat)
+  // SOCKET HELPERS
   // ---------------------------------------------------------
-
-  // JOIN CHAT ROOM (maps to socket event: "join_chat")
   joinChat(socket, chatId, userId) {
     socket.emit("join_chat", {
       chat_id: chatId,
@@ -74,7 +62,6 @@ export default {
     });
   },
 
-  // LEAVE CHAT ROOM
   leaveChat(socket, chatId, userId) {
     socket.emit("leave_chat", {
       chat_id: chatId,
@@ -82,7 +69,6 @@ export default {
     });
   },
 
-  // SEND MESSAGE (real-time)
   sendMessage(socket, chatId, senderId, content, messageType = "text", extra = {}) {
     socket.emit("message:send", {
       chat_id: chatId,
@@ -95,10 +81,13 @@ export default {
     });
   },
 
-  // MARK MESSAGE AS SEEN (REST)
+  // ---------------------------------------------------------
+  // MARK SEEN
+  // POST http://localhost:5050/api/chats/mark_seen
+  // ---------------------------------------------------------
   async markSeen(messageId, chatId, token) {
     const res = await axios.post(
-      `${API}/mark_seen`,
+      `${API}/api/chats/mark_seen`,
       {
         message_id: messageId,
         chat_id: chatId,
@@ -108,6 +97,6 @@ export default {
       }
     );
 
-    return res.data; // { ok: true }
+    return res.data.data;
   },
 };

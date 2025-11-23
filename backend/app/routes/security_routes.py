@@ -1,7 +1,7 @@
 # FILE: backend/app/routes/security_routes.py
 
 from flask import Blueprint, request, current_app, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, get_jwt
 from bson import ObjectId
 from datetime import datetime, timedelta
 import pyotp
@@ -84,6 +84,69 @@ def setup_2fa():
     except Exception as e:
         current_app.logger.error(f"[2FA SETUP ERROR] {str(e)}")
         return error("Failed to setup 2FA", 500)
+
+
+# -----------------------------------------------------
+#  2FA: Verify (Login Step 2)
+# -----------------------------------------------------
+@security_bp.route("/verify-2fa", methods=["POST"])
+@jwt_required()
+def verify_2fa():
+    try:
+        user_id = get_jwt_identity()
+        claims = get_jwt()
+        
+        # Ensure this is a temp token
+        if claims.get("type") != "2fa_temp":
+            return error("Invalid token type. Please login again.", 401)
+
+        code = (request.get_json() or {}).get("code")
+        if not code:
+            return error("Verification code required", 400)
+
+        user = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            return error("User not found", 404)
+
+        # Verify TOTP
+        totp = pyotp.TOTP(user.get("two_factor_secret"))
+        if not totp.verify(code):
+            db.audit_logs.insert_one({
+                "user_id": user_id,
+                "action": "2FA_LOGIN_FAIL",
+                "status": "failed",
+                "timestamp": now_utc()
+            })
+            return error("Invalid verification code", 401)
+
+        # Generate FULL access token
+        token = create_access_token(
+            identity=str(user["_id"]),
+            additional_claims={
+                "username": user["username"],
+                "email": user["email"]
+            }
+        )
+
+        db.audit_logs.insert_one({
+            "user_id": user_id,
+            "action": "LOGIN_SUCCESS_2FA",
+            "status": "success",
+            "timestamp": now_utc()
+        })
+
+        return success("Login successful", {
+            "access_token": token,
+            "user": {
+                "id": str(user["_id"]),
+                "username": user["username"],
+                "email": user["email"]
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"[2FA VERIFY ERROR] {str(e)}")
+        return error("Internal server error", 500)
 
 
 # -----------------------------------------------------

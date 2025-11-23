@@ -1,7 +1,8 @@
 // FILE: src/api/callApi.js
 import axios from "axios";
+import { API_BASE } from "../utils/constants";
 
-const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const API = API_BASE;
 
 export default {
   // -------------------------------------------------------
@@ -11,7 +12,7 @@ export default {
   // -------------------------------------------------------
   async startCall(chatId, receiverId, callType, token) {
     const res = await axios.post(
-      `${API}/calls/start`,
+      `${API}/api/calls/start`,
       {
         chat_id: chatId,
         receiver_id: receiverId,
@@ -43,10 +44,10 @@ export default {
   // GET /calls/history/:chat_id
   // -------------------------------------------------------
   async getCallHistory(chatId, token) {
-    const res = await axios.get(`${API}/calls/history/${chatId}`, {
+    const res = await axios.get(`${API}/api/calls/history/${chatId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    return res.data; 
+    return res.data;
     /*
       { calls: [ ... ] }
     */

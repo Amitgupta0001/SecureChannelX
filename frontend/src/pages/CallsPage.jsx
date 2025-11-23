@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { useCall } from "../context/CallContext";
-import callApi from "../services/callService";        // correct API path
+import callApi from "../services/callService"; // your correct call service
 import useChats from "../hooks/useChats";
 
 import VideoCallUI from "../components/VideoCallUI";
@@ -23,14 +23,23 @@ export default function CallsPage() {
   -------------------------------------------------------- */
   useEffect(() => {
     const loadHistory = async () => {
-      const res = await callApi.getCallHistory(chatId);
-      if (res?.calls) setHistory(res.calls);
+      if (!chatId) return;
+
+      const token = localStorage.getItem("access_token");
+      const res = await callApi.getCallHistory(chatId, token);
+
+      if (res?.calls && Array.isArray(res.calls)) {
+        setHistory(res.calls);
+      } else {
+        setHistory([]);
+      }
     };
+
     loadHistory();
   }, [chatId]);
 
   /* --------------------------------------------------------
-        FIND OTHER USER (private chats only)
+        FIND OTHER USER (PRIVATE CHAT ONLY)
   -------------------------------------------------------- */
   const loggedInUser = localStorage.getItem("uid");
 
@@ -41,7 +50,7 @@ export default function CallsPage() {
       : null;
 
   /* --------------------------------------------------------
-        IF IN CALL → SHOW CALL UI
+        IF CURRENTLY IN CALL → SHOW UI
   -------------------------------------------------------- */
   if (inCall) {
     return callInfo?.call_type === "video" ? (
@@ -52,7 +61,7 @@ export default function CallsPage() {
   }
 
   /* --------------------------------------------------------
-        CALL HISTORY DISPLAY
+        MAIN UI (CALL OPTIONS + HISTORY)
   -------------------------------------------------------- */
   return (
     <div className="w-full px-6 py-6 text-white bg-[#0D1117] h-screen overflow-y-auto">
@@ -83,6 +92,7 @@ export default function CallsPage() {
         </button>
       </div>
 
+      {/* ===== CALL HISTORY ===== */}
       <h3 className="text-lg font-semibold mb-3">Call History</h3>
 
       {history.length === 0 ? (
@@ -95,7 +105,7 @@ export default function CallsPage() {
 
             return (
               <li
-                key={c.id}
+                key={c._id || c.id}
                 className="p-3 bg-[#111827] border border-[#1f2937] rounded-lg"
               >
                 <div className="flex justify-between mb-1">

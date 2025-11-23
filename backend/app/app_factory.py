@@ -1,41 +1,63 @@
 # FILE: backend/app/app_factory.py
 
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from datetime import timedelta
 from dotenv import load_dotenv
+from flask_cors import CORS
 
-# ⬅️ Correct import — takes extensions from app/__init__.py
-from app import socketio, bcrypt, jwt, cors, mail
+# extensions imported from app/__init__.py
+from app import socketio, bcrypt, jwt, cors as old_cors, mail
 
 load_dotenv()
 
-
-
-# --------------------------------------------------------
+# =========================================================
 # APPLICATION FACTORY
-# --------------------------------------------------------
+# =========================================================
 def create_app():
     app_factory = Flask(__name__)
 
     # ----------------------------------------------------
     # CONFIG
     # ----------------------------------------------------
-    app_factory.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "your-secret-key-here")
-    app_factory.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-secret-key-here")
+    app_factory.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    if not app_factory.config["SECRET_KEY"]:
+        raise ValueError("No SECRET_KEY set for Flask application")
+        
+    app_factory.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+    if not app_factory.config["JWT_SECRET_KEY"]:
+        raise ValueError("No JWT_SECRET_KEY set for Flask application")
+
     app_factory.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
     app_factory.config["MONGODB_URI"] = os.getenv(
         "MONGODB_URI", "mongodb://localhost:27017/securechannelx"
     )
 
     # ----------------------------------------------------
+    # CORS (FULLY FIXED)
+    # ----------------------------------------------------
+    CORS(
+        app_factory,
+        resources={r"/*": {"origins": ["http://localhost:3000"]}},
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization"],
+        expose_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
+
+    # allow OPTIONS preflight (important for React)
+    @app_factory.before_request
+    def allow_preflight():
+        if request.method == "OPTIONS":
+            return jsonify({"status": "OK"}), 200
+
+    # ----------------------------------------------------
     # EXTENSIONS INIT
     # ----------------------------------------------------
-    cors.init_app(app_factory)
     bcrypt.init_app(app_factory)
     jwt.init_app(app_factory)
     mail.init_app(app_factory)
-    socketio.init_app(app_factory)
+    socketio.init_app(app_factory, cors_allowed_origins="*")
 
     # ----------------------------------------------------
     # DATABASE INIT
@@ -60,6 +82,7 @@ def create_app():
     from app.routes.read_receipts import reads_bp
     from app.routes.notifications import notifications_bp
     from app.routes.reactions import reactions_bp
+    from app.routes.users import users_bp
 
     app_factory.register_blueprint(auth_bp)
     app_factory.register_blueprint(security_bp)
@@ -75,15 +98,15 @@ def create_app():
     app_factory.register_blueprint(reads_bp)
     app_factory.register_blueprint(notifications_bp)
     app_factory.register_blueprint(reactions_bp)
+    app_factory.register_blueprint(users_bp)
 
     # ----------------------------------------------------
-    # SOCKET.IO EVENT IMPORTS (must be after init_app)
+    # SOCKET.IO EVENTS
     # ----------------------------------------------------
     import app.socket.chat_events
     import app.socket.call_events
     import app.socket.group_events
     import app.socket.typing_events
-    # If you ever add a webrtc_events.py, import it here.
 
     # ----------------------------------------------------
     # ERROR HANDLERS
@@ -142,4 +165,3 @@ def create_app():
         )
 
     return app_factory
-

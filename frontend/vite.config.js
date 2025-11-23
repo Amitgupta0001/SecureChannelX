@@ -1,47 +1,53 @@
 // FILE: vite.config.js
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Load .env variables
-const API = process.env.VITE_API_BASE || "http://localhost:5050";
-const SOCKET = process.env.VITE_SOCKET_URL || API;
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
 
-export default defineConfig({
-  plugins: [react()],
+  const API = env.VITE_API_BASE || "http://localhost:5050";
+  const SOCKET = env.VITE_SOCKET_URL || "http://localhost:5050";
 
-  server: {
-    port: 5050,
-    cors: true, // needed for dev API access
-    strictPort: true,
+  console.log("🔧 Loaded ENV:");
+  console.log("VITE_API_BASE =", API);
+  console.log("VITE_SOCKET_URL =", SOCKET);
 
-    proxy: {
-      // REST API proxy
-      "/api": {
-        target: API,
-        changeOrigin: true,
-        secure: false,
-      },
+  return {
+    plugins: [react()],
 
-      // Socket.io WebSocket proxy
-      "/socket.io": {
-        target: SOCKET,
-        changeOrigin: true,
-        ws: true,
-        secure: false,
+    server: {
+      port: 3000,
+      cors: true,
+      strictPort: true,
+
+      proxy: {
+        // REST API → Backend (auth endpoints are at /api/auth/*)
+        "/api/auth": {
+          target: API,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path, // Keep /api/auth exactly
+        },
+
+        // Socket.io → Realtime server
+        "/socket.io": {
+          target: SOCKET,
+          changeOrigin: true,
+          ws: true,
+          secure: false,
+        },
       },
     },
-  },
 
-  // Ensures broad browser support
-  build: {
-    target: ["es2020", "chrome90", "safari13"],
-    sourcemap: false,
-    minify: "esbuild",
-  },
+    build: {
+      target: ["es2020", "chrome90", "safari13"],
+      sourcemap: false,
+      minify: "esbuild",
+    },
 
-  // Fix some Node polyfill issues
-  define: {
-    "process.env": {},
-    global: {},
-  },
+    define: {
+      "process.env": {},
+      global: {},
+    },
+  };
 });
