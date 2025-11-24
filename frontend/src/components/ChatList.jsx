@@ -3,8 +3,33 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import NewChatModal from "./NewChatModal";
 
+import { EncryptionContext } from "../context/EncryptionContext";
+
 export default function ChatList({ chats, onSelect, activeChatId, onChatCreated }) {
+  const { decryptPreview } = React.useContext(EncryptionContext);
+  const [previews, setPreviews] = useState({}); // Map<chatId, previewText>
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+
+  // Decrypt previews when chats change
+  React.useEffect(() => {
+    chats.forEach(async (chat) => {
+      if (chat.last_message_preview === "Encrypted Message" || !chat.last_message_preview) {
+        // If we have the encrypted blob in the chat object (we need backend to send it!)
+        // Currently backend sends 'last_message_preview' string.
+        // We need the backend to send the 'last_message' object or encrypted content.
+        // The chat object usually has 'last_message' field populated?
+        // Let's check backend/app/routes/chats.py or models.
+        // If not, we can't decrypt.
+        // Assuming chat object has 'last_message_content' (encrypted blob)
+        if (chat.last_message_encrypted) {
+          const decrypted = await decryptPreview(chat._id, chat.last_message_encrypted);
+          setPreviews(prev => ({ ...prev, [chat._id]: decrypted }));
+        }
+      } else {
+        setPreviews(prev => ({ ...prev, [chat._id]: chat.last_message_preview }));
+      }
+    });
+  }, [chats, decryptPreview]);
 
   const handleChatCreated = (newChat) => {
     console.log("✅ New chat created:", newChat);
@@ -42,7 +67,7 @@ export default function ChatList({ chats, onSelect, activeChatId, onChatCreated 
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              onClick={() => onSelect(chat)}
+              onClick={() => onSelect(chat._id)}
               className={`flex gap-3 px-4 py-3 cursor-pointer transition-all
               border-b border-[#1f2937] 
               ${isActive ? "bg-[#1e293b]" : "hover:bg-[#111827]"}
@@ -71,7 +96,7 @@ export default function ChatList({ chats, onSelect, activeChatId, onChatCreated 
                 </div>
 
                 <p className="text-sm text-gray-400 truncate mt-0.5">
-                  {chat.last_message_preview || "No messages yet"}
+                  {previews[chat._id] || chat.last_message_preview || "No messages yet"}
                 </p>
               </div>
 

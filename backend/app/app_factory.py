@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 
 # extensions imported from app/__init__.py
-from app import socketio, bcrypt, jwt, cors as old_cors, mail
+from app import socketio, bcrypt, jwt, cors as old_cors, mail, limiter, talisman
 
 load_dotenv()
 
@@ -38,7 +38,7 @@ def create_app():
     # ----------------------------------------------------
     CORS(
         app_factory,
-        resources={r"/*": {"origins": ["http://localhost:3000"]}},
+        resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000"]}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         expose_headers=["Content-Type", "Authorization"],
@@ -57,13 +57,57 @@ def create_app():
     bcrypt.init_app(app_factory)
     jwt.init_app(app_factory)
     mail.init_app(app_factory)
-    socketio.init_app(app_factory, cors_allowed_origins="*")
+    limiter.init_app(app_factory)
+    
+    # CSP Config
+    csp = {
+        'default-src': '\'self\'',
+        'script-src': ['\'self\'', '\'unsafe-inline\'', '\'unsafe-eval\''], # unsafe-eval for some dev tools/libraries
+        'style-src': ['\'self\'', '\'unsafe-inline\''],
+        'img-src': ['\'self\'', 'data:', 'blob:'],
+        'connect-src': ['\'self\'', 'ws://localhost:5050', 'http://localhost:5050']
+    }
+    talisman.init_app(app_factory, content_security_policy=csp, force_https=False)
+    
+    socketio.init_app(app_factory, cors_allowed_origins=["http://localhost:5173", "http://localhost:3000"])
 
     # ----------------------------------------------------
     # DATABASE INIT
     # ----------------------------------------------------
     from app.database import init_db
     init_db(app_factory)
+
+    # ----------------------------------------------------
+    # AZURE SERVICES INIT (Optional - with fallbacks)
+    # ----------------------------------------------------
+    try:
+        # Import Azure services
+        from app.utils.azure_key_vault import key_vault_service
+        from app.utils.azure_monitoring import monitoring_service, track_event
+        from app.utils.azure_blob_storage import blob_storage_service
+        
+        # Services auto-initialize on import
+        # Track application startup
+        track_event("ApplicationStartup", {
+            "environment": os.getenv("FLASK_ENV", "development"),
+            "azure_key_vault_enabled": key_vault_service.enabled,
+            "azure_monitoring_enabled": monitoring_service.enabled,
+            "azure_blob_storage_enabled": blob_storage_service.enabled
+        })
+        
+        # Add telemetry middleware for Flask requests
+        if monitoring_service.enabled:
+            from opencensus.ext.flask.flask_middleware import FlaskMiddleware
+            middleware = FlaskMiddleware(
+                app_factory,
+                exporter=monitoring_service.metrics_exporter
+            )
+            print("✅ Azure telemetry middleware enabled")
+        
+    except Exception as e:
+        print(f"⚠️  Azure services initialization skipped: {str(e)}")
+        print("📝 Application will run with local fallbacks")
+
 
     # ----------------------------------------------------
     # REGISTER BLUEPRINTS
@@ -75,15 +119,13 @@ def create_app():
     from app.routes.direct_messages import dm_bp
     from app.routes.messages import messages_bp
     from app.routes.calls import calls_bp
-    from app.features.message_features import message_features_bp
-    from app.features.advanced_chat import advanced_chat_bp
-    from app.webrtc.webrtc import webrtc_bp
     from app.routes.file_upload import file_upload_bp
-    from app.routes.read_receipts import reads_bp
     from app.routes.notifications import notifications_bp
     from app.routes.reactions import reactions_bp
+    from app.routes.read_receipts import reads_bp
     from app.routes.users import users_bp
-
+    from app.routes.keys import keys_bp
+    
     app_factory.register_blueprint(auth_bp)
     app_factory.register_blueprint(security_bp)
     app_factory.register_blueprint(chats_bp)
@@ -91,14 +133,12 @@ def create_app():
     app_factory.register_blueprint(dm_bp)
     app_factory.register_blueprint(messages_bp)
     app_factory.register_blueprint(calls_bp)
-    app_factory.register_blueprint(message_features_bp)
-    app_factory.register_blueprint(advanced_chat_bp)
-    app_factory.register_blueprint(webrtc_bp)
     app_factory.register_blueprint(file_upload_bp)
-    app_factory.register_blueprint(reads_bp)
     app_factory.register_blueprint(notifications_bp)
     app_factory.register_blueprint(reactions_bp)
+    app_factory.register_blueprint(reads_bp)
     app_factory.register_blueprint(users_bp)
+    app_factory.register_blueprint(keys_bp)
 
     # ----------------------------------------------------
     # SOCKET.IO EVENTS

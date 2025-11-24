@@ -1,437 +1,167 @@
-# 🔐 **SecureChannelX**
+# SecureChannelX 🛡️
 
-### *A Modern, End-to-End Encrypted Messaging & File-Sharing Platform*
+<div align="center">
 
-Built with **React + Vite + Tailwind + Flask + Flask-SocketIO + MongoDB + Redis**
+![Status](https://img.shields.io/badge/status-beta-orange?style=for-the-badge)
+![Security](https://img.shields.io/badge/security-post--quantum-green?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-pink?style=for-the-badge)
 
-SecureChannelX is a **military-grade secure communication platform** supporting:
+**Military-Grade End-to-End Encrypted Messaging for the Post-Quantum Era.**
 
-* 🔒 End-to-end encrypted messaging (AES-256-GCM)
-* 📁 Encrypted file sharing
-* ⚡ Real-time chat via Socket.IO
-* 📱 Installable PWA
-* 📡 WebRTC voice/video calls
-* 🛡 Fully protected backend with JWT authentication
-* 🔑 TOTP-based 2FA (Google Authenticator / Authy)
-* ⚙ Modular, scalable architecture
-* 🔄 Password reset via email
-* 👥 User management and chat creation
+[Features](#-features) • [Architecture](#-architecture) • [Getting Started](#-getting-started) • [Security](#-security-deep-dive) • [Contributing](#-contributing)
 
-Designed for **security, speed, and modern UX**.
+</div>
 
 ---
 
-# 🚀 **Features**
+## 📖 Overview
 
-## 🔑 Authentication & Security
+**SecureChannelX** is a cutting-edge messaging platform engineered to withstand the threats of tomorrow. While traditional apps rely on encryption standards that may be broken by future quantum computers, SecureChannelX integrates **NIST-standardized Post-Quantum Cryptography (Kyber512)** to ensure your data remains secure for decades to come.
 
-* JWT authentication with secure token management
-* Secure password hashing (bcrypt)
-* TOTP-based 2FA (Google Authenticator / Authy)
-* Session key rotation via socket
-* Password reset flow with email verification
-* Device management and fingerprinting
-* Audit logging for security events
-* Client-side error logging
+Built with a **Zero-Knowledge** architecture, the server acts solely as a blind relay. It cannot read, modify, or analyze your messages.
 
 ---
 
-## 💬 Messaging System
+## ✨ Features
 
-* Real-time chat with Socket.IO
-* Private (1-on-1) and group chats
-* Create new chats with user selection modal
-* Typing indicators
-* Read receipts
-* Reactions (emoji)
-* Threaded replies
-* Message search, edit, and delete
-* Polls
-* Group chat system with member management
-* Direct messaging (DM)
+### 🔐 Next-Gen Security
+*   **True End-to-End Encryption (E2EE)**: Data is encrypted on the sender's device and decrypted only by the recipient.
+*   **Post-Quantum Resistance**: Uses **Kyber512** for key encapsulation, neutralizing "Harvest Now, Decrypt Later" attacks.
+*   **Forward Secrecy**: The **Double Ratchet** protocol rotates keys with every message. Compromising one key does not compromise past messages.
+*   **Break-in Recovery**: The system automatically heals itself after a key compromise.
 
----
+### 💬 Modern Messaging
+*   **Real-Time Communication**: Instant message delivery via WebSocket.
+*   **Group Encryption**: Efficient **Sender Keys** protocol allows for scalable, secure group chats.
+*   **Encrypted File Sharing**: Share images and documents securely. Files are encrypted (AES-GCM) client-side before upload.
+*   **Smart Previews**: Decrypts message previews locally for the chat list, keeping the server blind.
 
-## 📁 File Sharing
-
-* Encrypted file uploads
-* Modal upload UI with preview
-* Secure backend storage
-* File encryption before transmission
+### 🛡️ Identity & Integrity
+*   **Safety Numbers**: Verify contacts with a visual numeric fingerprint to detect Man-in-the-Middle (MITM) attacks.
+*   **Secure Storage**: Keys are stored in **IndexedDB** (not LocalStorage) to prevent XSS extraction.
+*   **Hardened Backend**: Protected by strict **CSP**, **Rate Limiting**, and **CORS** policies.
 
 ---
 
-## 🧠 End-to-End Encryption (E2EE)
+## 🏗 Architecture
 
-* AES-256-GCM client-side encryption
-* Forward secrecy mechanism
-* Automatic key rotation
-* Session key management
-* Encrypted message storage
+SecureChannelX follows a client-heavy, server-blind architecture.
 
----
-
-## 🎥 WebRTC Calling
-
-* Voice calls
-* Video calls
-* Mute/camera toggle
-* ICE + STUN support
-* Call signaling via Socket.IO
-
----
-
-## 📱 Progressive Web App (PWA)
-
-* Offline caching
-* Installation prompt
-* Manifest + icons
-* Service worker
-* Mobile-responsive design
-
----
-
-## 🔧 Admin & Security Tools
-
-* Security Center dashboard
-* Active devices management
-* Session keys viewer
-* Audit logs
-* Client-side error logging
-* Device fingerprinting
-* 2FA setup and management
-
----
-
-# 📂 **Project Structure**
-
-```
-SecureChannelX/
-│
-├── backend/
-│   ├── run.py                 # Application entry point
-│   ├── .env                   # Environment variables
-│   ├── requirements.txt       # Python dependencies
-│   └── app/
-│       ├── app_factory.py     # Flask app factory
-│       ├── database.py        # MongoDB connection
-│       ├── routes/            # API endpoints
-│       │   ├── auth.py        # Authentication routes
-│       │   ├── security_routes.py  # 2FA, logout, devices
-│       │   ├── chats.py       # Chat management
-│       │   ├── groups.py      # Group management
-│       │   ├── messages.py    # Message CRUD
-│       │   ├── users.py       # User list
-│       │   ├── calls.py       # WebRTC signaling
-│       │   └── ...
-│       ├── models/            # Database models
-│       ├── features/          # Advanced features
-│       ├── sockets/           # Socket.IO handlers
-│       ├── utils/             # Helper functions
-│       ├── security/          # Security utilities
-│       └── encryption/        # Encryption logic
-│
-├── frontend/
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── .env                   # Frontend environment
-│   ├── public/
-│   │   ├── manifest.json      # PWA manifest
-│   │   ├── service-worker.js  # Service worker
-│   │   └── icons/             # App icons
-│   └── src/
-│       ├── App.jsx            # Main app component
-│       ├── main.jsx           # Entry point
-│       ├── context/           # React contexts
-│       │   ├── AuthContext.jsx
-│       │   ├── ChatContext.jsx
-│       │   ├── SocketContext.jsx
-│       │   └── ...
-│       ├── components/        # Reusable components
-│       │   ├── ChatList.jsx
-│       │   ├── ChatWindow.jsx
-│       │   ├── NewChatModal.jsx
-│       │   └── ...
-│       ├── pages/             # Page components
-│       │   ├── Login.jsx
-│       │   ├── Register.jsx
-│       │   ├── ChatRoom.jsx
-│       │   ├── TwoFactorAuth.jsx
-│       │   └── ...
-│       ├── hooks/             # Custom React hooks
-│       ├── api/               # API client functions
-│       ├── services/          # Business logic
-│       ├── sockets/           # Socket.IO handlers
-│       └── utils/             # Utility functions
+```mermaid
+graph TD
+    A[Alice's Device] -->|Encrypted Blob| S[Server Relay]
+    S -->|Encrypted Blob| B[Bob's Device]
+    
+    subgraph "Client Side (Trust Zone)"
+    A -- Generates Keys --> A
+    A -- Encrypts Msg --> A
+    end
+    
+    subgraph "Server Side (Untrusted)"
+    S -- Stores Blob --> DB[(MongoDB)]
+    end
 ```
 
+### The Stack
+| Component | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | React, Vite, Tailwind | UI & Cryptographic Engine |
+| **Backend** | Python (Flask), Socket.IO | Signaling, Auth, & Blob Storage |
+| **Database** | MongoDB | Persistent Storage (Encrypted Data) |
+| **Key Exchange** | X3DH + Kyber512 | Initial Session Setup |
+| **Encryption** | AES-256-GCM | Message & File Encryption |
+
 ---
 
-# ⚙️ **Backend Setup**
+## 🚀 Getting Started
 
-### 1️⃣ Install MongoDB
+### Prerequisites
+*   **Node.js** v16+
+*   **Python** v3.9+
+*   **MongoDB** (Local or Atlas)
 
-Ensure MongoDB is running on `localhost:27017`
-
+### 1. Clone & Install
 ```bash
-# Windows
-mongod
-
-# macOS/Linux
-sudo systemctl start mongod
+git clone https://github.com/Amitgupta0001/SecureChannelX.git
+cd SecureChannelX
 ```
 
-### 2️⃣ Create virtual environment
-
+### 2. Backend Setup
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate   # macOS/Linux
-venv\Scripts\activate      # Windows
-```
+# Windows: venv\Scripts\activate | Mac/Linux: source venv/bin/activate
 
-### 3️⃣ Install dependencies
-
-```bash
 pip install -r requirements.txt
-```
 
-### 4️⃣ Create `.env` file
+# Create .env file
+echo "SECRET_KEY=dev_secret" > .env
+echo "JWT_SECRET_KEY=dev_jwt_secret" >> .env
+echo "MONGODB_URI=mongodb://localhost:27017/securechannelx" >> .env
 
-```env
-# Security Keys (REQUIRED - generate with: python -c "import secrets; print(secrets.token_hex(32))")
-SECRET_KEY=your-secret-key-here
-JWT_SECRET_KEY=your-jwt-secret-key-here
-
-# Database
-MONGO_URI=mongodb://localhost:27017/securechat
-
-# Redis (optional)
-REDIS_URL=redis://localhost:6379/0
-
-# Email (for password reset)
-MAIL_SERVER=smtp.gmail.com
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-
-# Debug mode (set to False in production)
-FLASK_DEBUG=True
-```
-
-**⚠️ IMPORTANT**: Generate secure random keys:
-```bash
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-### 5️⃣ Run backend
-
-```bash
 python run.py
 ```
+*Server runs on port `5050`*
 
-Backend runs at: **http://localhost:5050**
-
----
-
-# ⚙️ **Frontend Setup**
-
-### 1️⃣ Install dependencies
-
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
-```
-
-### 2️⃣ Create `.env` file
-
-```env
-VITE_API_BASE=http://localhost:5050
-VITE_SOCKET_URL=http://localhost:5050
-VITE_WEBSOCKET_URL=ws://localhost:5050
-```
-
-### 3️⃣ Run development server
-
-```bash
 npm run dev
 ```
-
-Frontend runs at: **http://localhost:3000**
-
-### 4️⃣ Build for production
-
-```bash
-npm run build
-```
+*App runs on `http://localhost:5173`*
 
 ---
 
-# 🔌 **Socket.IO Integration**
+## 🔒 Security Deep Dive
 
-Frontend connection:
+### 1. The Double Ratchet
+We use a custom implementation of the Double Ratchet algorithm.
+*   **Root Chain**: Derived from the X3DH shared secret.
+*   **Ratchet Steps**: Every message advances the chain, generating a unique Message Key.
+*   **Header Encryption**: Message headers are encrypted to hide metadata where possible.
 
-```javascript
-io(VITE_SOCKET_URL, {
-  transports: ["websocket", "polling"],
-  auth: { token: localStorage.getItem("access_token") }
-});
-```
+### 2. Post-Quantum Key Exchange (Kyber)
+Standard Elliptic Curve (X25519) is vulnerable to Shor's Algorithm on quantum computers. We layer **Kyber512** (a lattice-based KEM) on top of X25519. An attacker must break **both** to compromise the session.
 
-Backend events supported:
-* `connection` - Client connects
-* `join_chat` - Join chat room
-* `leave_chat` - Leave chat room
-* `message:send` - Send message
-* `message:new` - Receive message
-* `typing:start` / `typing:stop` - Typing indicators
-* `reaction:add` - Add reaction
-* `message:seen` - Mark as read
-* `group:create` / `group:member_added` - Group events
-* `call:offer` / `call:answer` / `call:ice_candidate` - WebRTC signaling
+### 3. Client-Side File Encryption
+Files are never sent as plaintext.
+1.  Client generates a random 32-byte AES key.
+2.  File is encrypted (AES-GCM) in the browser.
+3.  Encrypted blob is uploaded.
+4.  The AES key is sent to the recipient via the E2EE channel.
 
 ---
 
-# 📱 **PWA Features**
+## 🧪 Verification
 
-### ✅ Installable on Desktop & Mobile
-### ✅ Offline caching with Service Worker
-### ✅ App manifest with icons
-### ✅ Add to Home Screen support
-### ✅ Push notifications (optional)
+Don't just take our word for it. Verify the security yourself:
 
----
-
-# 🛡 **Security Highlights**
-
-* **End-to-end AES-256-GCM encryption** for all messages
-* **PBKDF2-based key derivation** for password hashing
-* **JWT with secure token management** and refresh support
-* **TOTP-based 2FA** for enhanced account security
-* **Secure session management** with device tracking
-* **Audit logging** for all security events
-* **Rate limiting** support (backend ready)
-* **Input validation** and sanitization
-* **CORS protection** with allowed origins
-* **Secure password reset** flow with email verification
+1.  **Network Inspection**: Open DevTools > Network. Observe that all `/api/messages` payloads are encrypted blobs.
+2.  **Storage Check**: Open Application > IndexedDB. Confirm keys are stored securely and not in LocalStorage.
+3.  **Safety Check**: Compare Safety Numbers with a friend. They should match exactly.
 
 ---
 
-# 🚀 **Getting Started**
+## 🤝 Contributing
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Amitgupta0001/SecureChannelX.git
-   cd SecureChannelX
-   ```
+We welcome contributions from security researchers and developers!
 
-2. **Set up backend** (see Backend Setup above)
-
-3. **Set up frontend** (see Frontend Setup above)
-
-4. **Create a user account**
-   - Navigate to http://localhost:3000/register
-   - Register with username, email, and password
-
-5. **Login and start chatting**
-   - Login at http://localhost:3000/login
-   - Click the "+" button to create a new chat
-   - Select a user and start messaging!
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes.
+4.  Push to the branch.
+5.  Open a Pull Request.
 
 ---
 
-# 🔧 **API Endpoints**
+## 📄 License
 
-### Authentication
-* `POST /api/auth/register` - Register new user
-* `POST /api/auth/login` - Login user
-* `POST /api/auth/forgot-password` - Request password reset
-* `POST /api/auth/reset-password` - Reset password with token
-* `GET /api/auth/profile` - Get user profile
-
-### Security
-* `POST /api/security/setup-2fa` - Setup 2FA
-* `POST /api/security/verify-2fa` - Verify 2FA code
-* `POST /api/security/enable-2fa` - Enable 2FA
-* `POST /api/security/disable-2fa` - Disable 2FA
-* `POST /api/security/logout` - Logout user
-* `GET /api/security/devices` - Get active devices
-* `GET /api/security/audit-logs` - Get audit logs
-
-### Chats
-* `POST /api/chats/create` - Create new chat
-* `GET /api/chats/list` - Get user's chats
-* `GET /api/chats/:id` - Get chat details
-
-### Messages
-* `GET /api/messages/:chat_id` - Get chat messages
-* `POST /api/messages/:chat_id` - Send message
-* `GET /api/messages/search` - Search messages
-* `PUT /api/messages/:id` - Edit message
-* `DELETE /api/messages/:id` - Delete message
-* `POST /api/messages/:id/thread` - Create thread message
-* `GET /api/messages/:id/thread` - Get thread messages
-
-### Users
-* `GET /api/users/list` - Get all users (for chat creation)
-
-### Groups
-* `POST /api/groups/create` - Create group
-* `GET /api/groups/list` - Get user's groups
-* `POST /api/groups/:id/add` - Add member to group
+Distributed under the **MIT License**. See `LICENSE` for more information.
 
 ---
 
-# 🐛 **Troubleshooting**
-
-### Backend won't start
-* Ensure MongoDB is running
-* Check `.env` file has valid SECRET_KEY and JWT_SECRET_KEY
-* Verify Python version (3.8+)
-
-### Frontend can't connect to backend
-* Ensure backend is running on port 5050
-* Check `.env` file has correct VITE_API_BASE
-* Clear browser cache (Ctrl+Shift+R)
-
-### Login not working
-* Check browser console for errors
-* Verify SECRET_KEY and JWT_SECRET_KEY are set in backend/.env
-* Restart backend server after changing .env
-
-### Chat list shows "No chats yet"
-* This is normal for new users
-* Click the "+" button to create a new chat
-* Select a user from the list
-
----
-
-# 👨‍💻 **Developer**
-
-**Amit Kumar Gupta**  
-Full-stack Engineer • Security Researcher  
-Creator of SecureChannelX
-
-GitHub: [@Amitgupta0001](https://github.com/Amitgupta0001)
-
----
-
-# 📜 **License**
-
-Released for **learning, academic, and portfolio use**.
-
----
-
-# 🙏 **Acknowledgments**
-
-Built with:
-* React + Vite + TailwindCSS
-* Flask + Flask-SocketIO
-* MongoDB + PyMongo
-* Socket.IO
-* WebRTC
-* Framer Motion
-* Axios
-
----
-
-**⭐ Star this repo if you find it useful!**
+<p align="center">
+  <b>SecureChannelX</b> — Privacy is a Human Right.
+</p>

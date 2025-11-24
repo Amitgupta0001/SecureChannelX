@@ -21,24 +21,41 @@ export const AuthProvider = ({ children }) => {
   const [tempToken, setTempToken] = useState(null);
 
   /* -------------------------------------------------------
-       LOAD SESSION ON PAGE REFRESH
+       LOAD SESSION ON PAGE REFRESH - WITH VALIDATION
   -------------------------------------------------------- */
   useEffect(() => {
-    const storedToken = localStorage.getItem("access_token");
-    const storedUser = localStorage.getItem("user_data");
+    const validateSession = async () => {
+      const storedToken = localStorage.getItem("access_token");
+      const storedUser = localStorage.getItem("user_data");
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
+      if (!storedToken || !storedUser) {
+        setLoading(false);
+        return;
+      }
+
       try {
+        // Validate token with backend
+        const res = await axios.get(`${API}/api/users/me`, {
+          headers: { Authorization: `Bearer ${storedToken}` }
+        });
+
+        // Token is valid, restore session
+        setToken(storedToken);
         setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Invalid user_data in localStorage");
+        console.log("✅ Session restored from localStorage");
+      } catch (error) {
+        // Token invalid/expired, clear storage
+        console.log("🔴 Stored token invalid, clearing session");
         localStorage.removeItem("access_token");
         localStorage.removeItem("user_data");
+        setToken(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    setLoading(false);
+    validateSession();
   }, []);
 
   /* -------------------------------------------------------
@@ -85,18 +102,17 @@ export const AuthProvider = ({ children }) => {
 
       // Extract fields from actual backend response
       const access_token = data.access_token;
-      const user_id = data.user_id;
-      const user_name = data.username;  // Renamed to avoid shadowing parameter
+      const user = data.user; // Backend returns {access_token, user: {id, username}}
 
-      if (!access_token || !user_id || !user_name) {
+      if (!access_token || !user || !user.id || !user.username) {
         console.error("🔴 Invalid server response:", data);
         return { error: "Invalid server response" };
       }
 
       // Construct user object for frontend
       const userObj = {
-        id: user_id,
-        username: user_name
+        id: user.id,
+        username: user.username
       };
 
       console.log("🟢 Saving session with user:", userObj);

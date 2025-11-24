@@ -99,7 +99,9 @@ export const SocketProvider = ({ children }) => {
 
     /* --- CLEANUP --- */
     return () => {
-      newSocket.disconnect();
+      if (newSocket && newSocket.connected) {
+        newSocket.disconnect(); // Disconnect only if connected
+      }
       setSocket(null);
       setIsConnected(false);
     };

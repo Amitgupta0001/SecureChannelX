@@ -12,6 +12,37 @@ db = get_db()
 
 
 # ============================================================
+#                   GET CURRENT USER INFO
+# ============================================================
+@users_bp.route("/me", methods=["GET"])
+@jwt_required()
+def get_current_user():
+    """Get current logged-in user's info"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        user = db.users.find_one(
+            {"_id": ObjectId(current_user_id)},
+            {"password": 0, "two_factor_secret": 0}
+        )
+        
+        if not user:
+            return error("User not found", 404)
+        
+        return success(data={
+            "user": {
+                "id": str(user["_id"]),
+                "username": user.get("username"),
+                "email": user.get("email"),
+            }
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"[GET CURRENT USER ERROR] {str(e)}")
+        return error("Failed to fetch user info", 500)
+
+
+# ============================================================
 #                   LIST ALL USERS (except current user)
 # ============================================================
 @users_bp.route("/list", methods=["GET"])

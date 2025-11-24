@@ -22,7 +22,7 @@ export function useEncryption(chatId) {
     encryptMessage: (text) => encrypt(chatId, text),
     decryptMessage: (encObj) => decrypt(chatId, encObj),
     initChatSession,
-    hasSessionKey: !!sessionKeys[chatId],
+    hasSessionKey: !!(sessionKeys && sessionKeys[chatId]),
     publicKey,
   };
 }

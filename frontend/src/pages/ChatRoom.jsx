@@ -20,7 +20,7 @@ export default function ChatRoom() {
     typingUsers,
   } = useChats();
 
-  const { socket, emit } = useSocket(); // currently unused but kept for future extensions
+  const { socket, emit } = useSocket();
 
   const {
     decryptedMessages,
@@ -34,7 +34,7 @@ export default function ChatRoom() {
   const [showSearch, setShowSearch] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
 
-  // Mark messages as seen when a chat becomes active
+  // Mark messages as seen when chat becomes active
   useEffect(() => {
     if (activeChatId) {
       markAsSeen();
@@ -43,7 +43,20 @@ export default function ChatRoom() {
 
   // Mobile sidebar handling
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const handleChatSelect = (chatId) => {
+
+  /**  
+   * FIX: This must ALWAYS forward the chat ID,
+   * even if ChatList mistakenly sends the full chat object.  
+   */
+  const handleChatSelect = (chat) => {
+    const chatId =
+      typeof chat === "string" ? chat : chat?._id || chat?.id;
+
+    if (!chatId) {
+      console.error("Invalid chat selected:", chat);
+      return;
+    }
+
     openChat(chatId);
     setSidebarOpen(false);
   };
@@ -52,7 +65,9 @@ export default function ChatRoom() {
     <div className="flex h-screen bg-[#0D1117] text-white">
       {/* ---------------- SIDEBAR ---------------- */}
       <div
-        className={`${sidebarOpen ? "w-80" : "w-0 lg:w-80"} transition-all bg-[#111827] border-r border-[#1f2937] overflow-hidden`}
+        className={`${
+          sidebarOpen ? "w-80" : "w-0 lg:w-80"
+        } transition-all bg-[#111827] border-r border-[#1f2937] overflow-hidden`}
       >
         <ChatList
           chats={sidebarChats}

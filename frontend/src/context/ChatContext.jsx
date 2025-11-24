@@ -69,8 +69,16 @@ export const ChatProvider = ({ children }) => {
       setLoadingMessages(true);
       try {
         if (!token) return;
+
         const res = await messageApi.getMessages(chatId, token);
-        setMessages(res.messages || []);
+
+        if (!res || !Array.isArray(res.messages)) {
+          console.warn("⚠️ No messages found for chat:", chatId, "Response:", res);
+          setMessages([]); // Fallback to an empty array
+          return;
+        }
+
+        setMessages(res.messages);
       } finally {
         setLoadingMessages(false);
       }
@@ -116,6 +124,11 @@ export const ChatProvider = ({ children }) => {
        HANDLE NEW MESSAGE
   -------------------------------------------------------- */
   const handleNewMessage = (msg) => {
+    if (!msg || !msg.chat_id) {
+      console.warn("Received invalid message object:", msg);
+      return;
+    }
+
     if (msg.chat_id === activeChatId) {
       setMessages((prev) => [...prev, msg]);
     }
@@ -152,6 +165,11 @@ export const ChatProvider = ({ children }) => {
        HANDLE TYPING START/STOP
   -------------------------------------------------------- */
   const handleTypingStart = ({ chat_id, user_id }) => {
+    if (!chat_id || !user_id) {
+      console.warn("Invalid typing start event:", { chat_id, user_id });
+      return;
+    }
+
     if (chat_id !== activeChatId) return;
     setTypingUsers((prev) =>
       prev.includes(user_id) ? prev : [...prev, user_id]
@@ -159,6 +177,11 @@ export const ChatProvider = ({ children }) => {
   };
 
   const handleTypingStop = ({ chat_id, user_id }) => {
+    if (!chat_id || !user_id) {
+      console.warn("Invalid typing stop event:", { chat_id, user_id });
+      return;
+    }
+
     if (chat_id !== activeChatId) return;
     setTypingUsers((prev) => prev.filter((id) => id !== user_id));
   };

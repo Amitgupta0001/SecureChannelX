@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useChat } from "../context/ChatContext";
 import { useAuth } from "../context/AuthContext";
-import { useEncryption } from "../hooks/useEncryption";
+import { useEncryption } from "./useEncryption";
 import messageApi from "../api/messageApi";
 import { useSocket } from "../context/SocketContext";
 

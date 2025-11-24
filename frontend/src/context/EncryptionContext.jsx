@@ -1,5 +1,4 @@
 // FILE: src/context/EncryptionContext.jsx
-
 import React, {
   createContext,
   useContext,
@@ -24,158 +23,318 @@ export const useEncryption = () => {
 // ---------------------
 // Helper functions
 // ---------------------
-// NOTE: Browser WebCrypto supports only: P-256, P-384, P-521
-// We will use P-256 for ECDH
-async function generateKeyPair() {
-  return await window.crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    ["deriveKey"]
-  );
-}
-
-async function deriveAESKey(privateKey, peerPublicKey) {
-  return await window.crypto.subtle.deriveKey(
-    { name: "ECDH", public: peerPublicKey },
-    privateKey,
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
-  );
-}
-
-async function aesEncrypt(key, text) {
-  const encoder = new TextEncoder();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    encoder.encode(text)
-  );
-
-  return {
-    ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
-    iv: btoa(String.fromCharCode(...iv)),
-  };
-}
-
-async function aesDecrypt(key, encrypted, ivBase64) {
-  const decoder = new TextDecoder();
-  const iv = Uint8Array.from(atob(ivBase64), (c) => c.charCodeAt(0));
-  const ciphertext = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-
-  const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv },
-    key,
-    ciphertext
-  );
-
-  return decoder.decode(plaintext);
-}
+import {
+  generatePreKeyBundle,
+  x3dhSender,
+  x3dhReceiver
+} from "../lib/crypto/x3dh";
+import { DoubleRatchet } from "../lib/crypto/ratchet";
+import { SenderKeyRatchet } from "../lib/crypto/sender_keys";
+import { saveKey, loadKey, saveSession, loadSession } from "../lib/crypto/store";
+import { toBase64, fromBase64 } from "../lib/crypto/primitives";
+import keyApi from "../api/keyApi";
 
 // ---------------------
 // Provider
 // ---------------------
 export const EncryptionProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
-  const [keys, setKeys] = useState({ privateKey: null, publicKey: null });
-  const [sessionKeys, setSessionKeys] = useState({});
+  const [identity, setIdentity] = useState(null);
+  const [ratchets, setRatchets] = useState({});
+  const [groupSessions, setGroupSessions] = useState({});
+  const [myGroupKeys, setMyGroupKeys] = useState({});
   const [ready, setReady] = useState(false);
 
-  // Load or create keypair
+  /* -------------------------------------------------------
+       LOAD OR CREATE IDENTITY & PREKEYS
+  -------------------------------------------------------- */
   useEffect(() => {
     if (!user) {
-      setKeys({ privateKey: null, publicKey: null });
-      setSessionKeys({});
+      setIdentity(null);
+      setRatchets({});
       setReady(false);
       return;
     }
 
     (async () => {
-      let stored = localStorage.getItem(`scx_keypair_${user.id}`);
+      let idKey = await loadKey(user.id, "identity");
 
-      if (!stored) {
-        // NEW KEYPAIR
-        const kp = await generateKeyPair();
-        const pub = await crypto.subtle.exportKey("jwk", kp.publicKey);
-        const priv = await crypto.subtle.exportKey("jwk", kp.privateKey);
+      if (!idKey) {
+        console.log("Generating new Identity & PreKeys...");
 
-        localStorage.setItem(
-          `scx_keypair_${user.id}`,
-          JSON.stringify({ pub, priv })
-        );
+        try {
+          const bundle = await generatePreKeyBundle();
 
-        setKeys({ privateKey: kp.privateKey, publicKey: kp.publicKey });
-      } else {
-        // IMPORT EXISTING KEYPAIR
-        const parsed = JSON.parse(stored);
+          // Save keys
+          await saveKey(user.id, "identity", bundle.identityKey);
+          await saveKey(user.id, "signedPreKey", bundle.signedPreKey);
+          await saveKey(user.id, "kyberPreKey", bundle.kyberPreKey);
 
-        const privateKey = await crypto.subtle.importKey(
-          "jwk",
-          parsed.priv,
-          { name: "ECDH", namedCurve: "P-256" },   // ✅ FIX
-          true,
-          ["deriveKey"]
-        );
+          idKey = bundle.identityKey;
 
-        const publicKey = await crypto.subtle.importKey(
-          "jwk",
-          parsed.pub,
-          { name: "ECDH", namedCurve: "P-256" },   // ✅ FIX
-          true,
-          []
-        );
-
-        setKeys({ privateKey, publicKey });
+          // Upload Public Bundle to Server
+          try {
+            const publicBundle = {
+              identity_key: toBase64(bundle.identityKey.pub),
+              signed_pre_key: toBase64(bundle.signedPreKey.pub),
+              kyber_pre_key: toBase64(bundle.kyberPreKey.pub),
+              one_time_pre_keys: bundle.oneTimePreKeys.map((k) =>
+                toBase64(k.pub)
+              ),
+            };
+            await keyApi.uploadBundle(publicBundle, token);
+          } catch (uploadErr) {
+            console.error("Failed to upload keys to server:", uploadErr);
+          }
+        } catch (err) {
+          console.error("❌ Failed to generate PreKeys", err);
+          setReady(false);
+          return;
+        }
       }
 
+      setIdentity(idKey);
       setReady(true);
     })();
-  }, [user]);
+  }, [user, token]);
 
-  // Create session key per chat
-  const initChatSession = async (chatId, peerPublicKeyJWK) => {
-    if (!keys.privateKey) return;
+  /* -------------------------------------------------------
+      IMPORTANT FIX:
+      ❌ Removed the second useEffect that called initIdentity()
+      because initIdentity() DOES NOT EXIST and created a crash.
+  -------------------------------------------------------- */
 
-    const peerPubKey = await crypto.subtle.importKey(
-      "jwk",
-      peerPublicKeyJWK,
-      { name: "ECDH", namedCurve: "P-256" },    // ✅ FIX
-      true,
-      []
+  /* -------------------------------------------------------
+      INITIALIZE CHAT SESSION (X3DH)
+  -------------------------------------------------------- */
+  const initChatSession = async (chatId, peerId) => {
+    if (!identity) return;
+    if (ratchets[chatId]) return;
+
+    try {
+      console.log("Initializing X3DH session for chat", chatId);
+
+      const peerBundleData = await keyApi.getBundle(peerId, token);
+
+      const peerBundle = {
+        identityKey: fromBase64(peerBundleData.identity_key),
+        signedPreKey: fromBase64(peerBundleData.signed_pre_key),
+        kyberPreKey: fromBase64(peerBundleData.kyber_pre_key)
+      };
+
+      const res = await x3dhSender(identity, peerBundle);
+
+      const dr = await DoubleRatchet.initSender(
+        res.sharedSecret,
+        peerBundle.signedPreKey
+      );
+
+      dr.x3dhHeader = res.header;
+
+      setRatchets(prev => ({ ...prev, [chatId]: dr }));
+
+    } catch (e) {
+      console.error("X3DH Failed:", e);
+      throw e;
+    }
+  };
+
+  /* -------------------------------------------------------
+      DECRYPT MESSAGE
+  -------------------------------------------------------- */
+  const decrypt = async (chatId, messageData) => {
+    let dr = ratchets[chatId];
+
+    if (!dr) {
+      const sessionState = await loadSession(user.id, chatId);
+      if (sessionState) {
+        dr = new DoubleRatchet();
+        dr.state = sessionState;
+        setRatchets(prev => ({ ...prev, [chatId]: dr }));
+      }
+    }
+
+    if (!dr && messageData.x3dh_header) {
+      console.log("New session request received via X3DH");
+
+      const myId = await loadKey(user.id, "identity");
+      const mySpk = await loadKey(user.id, "signedPreKey");
+      const myPq = await loadKey(user.id, "kyberPreKey");
+
+      const sharedSecret = await x3dhReceiver(
+        myId,
+        mySpk,
+        myPq,
+        messageData.x3dh_header
+      );
+
+      dr = await DoubleRatchet.initReceiver(sharedSecret, null);
+      setRatchets(prev => ({ ...prev, [chatId]: dr }));
+    }
+
+    if (!dr) throw new Error("No session established and no X3DH header found");
+
+    const plaintext = await dr.decrypt(
+      messageData.header,
+      messageData.ciphertext,
+      messageData.nonce
     );
 
-    const aes = await deriveAESKey(keys.privateKey, peerPubKey);
-
-    setSessionKeys((prev) => ({
-      ...prev,
-      [chatId]: aes,
-    }));
+    await saveSession(user.id, chatId, dr.state);
+    return plaintext;
   };
 
+  /* -------------------------------------------------------
+      DECRYPT PREVIEW (does not mutate ratchet)
+  -------------------------------------------------------- */
+  const decryptPreview = async (chatId, messageData) => {
+    let dr = ratchets[chatId];
+
+    if (!dr) {
+      const sessionState = await loadSession(user.id, chatId);
+      if (sessionState) {
+        dr = new DoubleRatchet();
+        dr.state = sessionState;
+      }
+    }
+
+    if (!dr) return "Encrypted Message";
+
+    const cloneDr = new DoubleRatchet();
+    cloneDr.state = JSON.parse(JSON.stringify(dr.state));
+
+    try {
+      return await cloneDr.decrypt(
+        messageData.header,
+        messageData.ciphertext,
+        messageData.nonce
+      );
+    } catch {
+      return "Encrypted Message";
+    }
+  };
+
+  /* -------------------------------------------------------
+      ENCRYPT MESSAGE
+  -------------------------------------------------------- */
   const encrypt = async (chatId, text) => {
-    const aes = sessionKeys[chatId];
-    if (!aes) throw new Error("Chat session key not initialized");
-    return await aesEncrypt(aes, text);
+    let dr = ratchets[chatId];
+
+    if (!dr) {
+      const sessionState = await loadSession(user.id, chatId);
+      if (sessionState) {
+        dr = new DoubleRatchet();
+        dr.state = sessionState;
+        setRatchets(prev => ({ ...prev, [chatId]: dr }));
+      }
+    }
+
+    if (!dr) throw new Error("Chat session not initialized");
+
+    const res = await dr.encrypt(text);
+
+    await saveSession(user.id, chatId, dr.state);
+
+    if (dr.x3dhHeader) {
+      res.x3dh_header = dr.x3dhHeader;
+      delete dr.x3dhHeader;
+    }
+
+    return res;
   };
 
-  const decrypt = async (chatId, enc) => {
-    const aes = sessionKeys[chatId];
-    if (!aes) throw new Error("Chat session key not initialized");
-    return await aesDecrypt(aes, enc.ciphertext, enc.iv);
+  /* -------------------------------------------------------
+      GROUP ENCRYPTION HELPERS
+  -------------------------------------------------------- */
+
+  const getGroupSession = async (groupId, senderId) => {
+    if (groupSessions[groupId] && groupSessions[groupId][senderId]) {
+      return groupSessions[groupId][senderId];
+    }
+    return null;
+  };
+
+  const distributeGroupKey = async (groupId, participants) => {
+    let myKey = myGroupKeys[groupId];
+    if (!myKey) {
+      myKey = SenderKeyRatchet.generate();
+      setMyGroupKeys(prev => ({ ...prev, [groupId]: myKey }));
+      throw new Error("GROUP_KEY_MISSING");
+    }
+
+    const keyData = myKey.serialize();
+
+    const distributions = [];
+
+    for (const pId of participants) {
+      if (pId === user.id) continue;
+
+      await initChatSession(pId, pId);
+
+      try {
+        const encrypted = await encrypt(
+          pId,
+          JSON.stringify({
+            type: "sender_key_distribution",
+            groupId,
+            senderId: user.id,
+            key: keyData
+          })
+        );
+        distributions.push({ userId: pId, content: encrypted });
+      } catch (e) {
+        console.error(`Failed to distribute key to ${pId}`, e);
+      }
+    }
+
+    return distributions;
+  };
+
+  const encryptGroup = async (groupId, text) => {
+    let myKey = myGroupKeys[groupId];
+    if (!myKey) {
+      myKey = SenderKeyRatchet.generate();
+      setMyGroupKeys(prev => ({ ...prev, [groupId]: myKey }));
+      throw new Error("GROUP_KEY_MISSING");
+    }
+
+    return await myKey.encrypt(text);
+  };
+
+  const decryptGroup = async (groupId, senderId, data) => {
+    const session = await getGroupSession(groupId, senderId);
+    if (!session) throw new Error("No Sender Key for " + senderId);
+
+    return await session.decrypt(data.ciphertext, data.nonce, data.step);
+  };
+
+  const handleDistributionMessage = async (msg) => {
+    if (msg.type === "sender_key_distribution") {
+      const session = SenderKeyRatchet.deserialize(msg.key);
+      setGroupSessions(prev => ({
+        ...prev,
+        [msg.groupId]: {
+          ...(prev[msg.groupId] || {}),
+          [msg.senderId]: session
+        }
+      }));
+    }
   };
 
   return (
     <EncryptionContext.Provider
       value={{
         ready,
-        publicKey: keys.publicKey,
+        identity,
         initChatSession,
         encrypt,
         decrypt,
-        sessionKeys,
+        decryptPreview,
+        encryptGroup,
+        decryptGroup,
+        distributeGroupKey,
+        handleDistributionMessage
       }}
     >
       {children}
@@ -183,5 +342,4 @@ export const EncryptionProvider = ({ children }) => {
   );
 };
 
-// Default export for safety
 export default EncryptionContext;

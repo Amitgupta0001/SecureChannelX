@@ -3,19 +3,95 @@ import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, FileImage, FileVideo, FileText, X } from "lucide-react";
 
+import { encryptAesGcm, getRandomBytes, toBase64 } from "../lib/crypto/primitives";
+
+// File upload constraints
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = [
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf', 'video/mp4', 'audio/mp3', 'text/plain',
+  'application/zip', 'application/x-zip-compressed'
+];
+
 export default function FileUpload({ roomId, onClose, onSend }) {
   const [file, setFile] = useState(null);
+  const [error, setError] = useState(null);
   const dropRef = useRef(null);
 
-  const handleSelect = (e) => {
-    setFile(e.target.files[0]);
+  const validateFile = (selectedFile) => {
+    // Reset error
+    setError(null);
+
+    // Check if file exists
+    if (!selectedFile) {
+      setError("No file selected");
+      return false;
+    }
+
+    // Validate file size
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      const sizeMB = (MAX_FILE_SIZE / 1024 / 1024).toFixed(0);
+      setError(`File too large! Maximum size is ${sizeMB}MB. Your file is ${(selectedFile.size / 1024 / 1024).toFixed(2)}MB.`);
+      return false;
+    }
+
+    // Validate file type
+    if (!ALLOWED_TYPES.includes(selectedFile.type)) {
+      setError(`Invalid file type! Only images, PDFs, videos, and documents are allowed.`);
+      return false;
+    }
+
+    // Check for empty files
+    if (selectedFile.size === 0) {
+      setError("Cannot upload empty files");
+      return false;
+    }
+
+    return true;
   };
 
-  const sendFile = () => {
+  const handleSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile && validateFile(selectedFile)) {
+      setFile(selectedFile);
+    } else {
+      setFile(null);
+    }
+  };
+
+  const sendFile = async () => {
     if (!file) return;
-    onSend(file);
-    setFile(null);
-    onClose();
+
+    try {
+      // 1. Read file
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      // 2. Generate Key
+      const key = getRandomBytes(32);
+
+      // 3. Encrypt
+      const { ciphertext, nonce } = encryptAesGcm(key, bytes);
+
+      // 4. Create Encrypted Blob & File
+      const encryptedBlob = new Blob([ciphertext], { type: "application/octet-stream" });
+      const encryptedFile = new File([encryptedBlob], file.name + ".enc", { type: "application/octet-stream" });
+
+      // 5. Pass to parent
+      onSend(encryptedFile, {
+        key: toBase64(key),
+        nonce: toBase64(nonce),
+        mimeType: file.type,
+        fileName: file.name
+      });
+
+      setFile(null);
+      setError(null);
+      onClose();
+    } catch (e) {
+      console.error("File encryption failed", e);
+      setError("Failed to encrypt file");
+    }
   };
 
   const detectTypeIcon = () => {
@@ -30,8 +106,12 @@ export default function FileUpload({ roomId, onClose, onSend }) {
   // Drag and Drop
   const handleDrop = (e) => {
     e.preventDefault();
-    const f = e.dataTransfer.files[0];
-    if (f) setFile(f);
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && validateFile(droppedFile)) {
+      setFile(droppedFile);
+    } else {
+      setFile(null);
+    }
   };
 
   const prevent = (e) => e.preventDefault();
@@ -91,6 +171,18 @@ export default function FileUpload({ roomId, onClose, onSend }) {
             </label>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mt-3 p-3 rounded-lg bg-red-900/20 border border-red-500/30">
+              <p className="text-sm text-red-400">⚠️ {error}</p>
+            </div>
+          )}
+
+          {/* File Size Info */}
+          <div className="mt-3 text-xs text-gray-400 text-center">
+            Maximum file size: 10MB | Supported: Images, PDFs, Videos, Documents
+          </div>
+
           {/* Preview */}
           {file && (
             <div className="mt-5 p-4 rounded-xl bg-[#111827] border border-[#1f2937]">
@@ -99,7 +191,7 @@ export default function FileUpload({ roomId, onClose, onSend }) {
                 <div className="flex-1">
                   <p className="text-sm font-medium">{file.name}</p>
                   <p className="text-xs text-gray-400">
-                    {(file.size / 1024).toFixed(1)} KB
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                 </div>
               </div>

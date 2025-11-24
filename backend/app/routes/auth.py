@@ -9,7 +9,7 @@ from flask_jwt_extended import (
 from bson import ObjectId
 
 # Correct imports — NO "backend.*" anywhere
-from app import bcrypt
+from app import bcrypt, limiter
 from app.database import get_db
 
 # Utils
@@ -63,6 +63,7 @@ class AuditLog:
 #                       REGISTER
 # ======================================================
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("5 per minute")
 def register():
     try:
         data = request.get_json() or {}
@@ -118,6 +119,7 @@ def register():
 #                       LOGIN
 # ======================================================
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("10 per minute")
 def login():
     try:
         data = request.get_json() or {}
@@ -177,6 +179,7 @@ def login():
 #                   FORGOT PASSWORD
 # ======================================================
 @auth_bp.route("/forgot-password", methods=["POST"])
+@limiter.limit("3 per minute")
 def forgot_password():
     try:
         data = request.get_json() or {}
@@ -225,6 +228,7 @@ If you did not request this, please ignore this email.
 #                   RESET PASSWORD
 # ======================================================
 @auth_bp.route("/reset-password", methods=["POST"])
+@limiter.limit("3 per minute")
 def reset_password():
     try:
         data = request.get_json() or {}

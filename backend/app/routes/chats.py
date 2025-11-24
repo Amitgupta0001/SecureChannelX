@@ -96,6 +96,7 @@ def list_user_chats():
                 "title": c.get("title"),
                 "participants": [str(x) for x in c.get("participants", [])],
                 "last_message_preview": c.get("last_message_preview"),
+                "last_message_encrypted": c.get("last_message_encrypted"),
                 "last_message_at": (
                     c.get("last_message_at").isoformat()
                     if c.get("last_message_at") else None
