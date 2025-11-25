@@ -23,6 +23,7 @@ export function useEncryption(chatId) {
     decryptMessage: (encObj) => decrypt(chatId, encObj),
     initChatSession,
     hasSessionKey: !!(sessionKeys && sessionKeys[chatId]),
+    sessionKeys, // FIX: Expose for debugging
     publicKey,
   };
 }

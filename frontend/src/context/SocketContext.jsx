@@ -56,8 +56,12 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
+    console.log("🔌 Connecting socket with token:", token?.substring(0, 20) + "...");
+    console.log("👤 User:", user);
+
     const newSocket = io(import.meta.env.VITE_WS_URL || "http://localhost:5050", {
       auth: { token },
+      query: { token }, // FIX: Also pass as query param for backend compatibility
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 15,
@@ -67,7 +71,7 @@ export const SocketProvider = ({ children }) => {
 
     /* --- CONNECTION EVENTS --- */
     newSocket.on("connect", () => {
-      console.log("🔌 SecureChannelX WebSocket Connected");
+      console.log("✅ Socket connected! SID:", newSocket.id);
       setIsConnected(true);
     });
 
@@ -93,6 +97,10 @@ export const SocketProvider = ({ children }) => {
     newSocket.on("session_key_rotated", ({ new_key }) => {
       console.log("♻️ Session key rotated");
       setSessionKey(new_key);
+    });
+
+    newSocket.on("ready", (data) => {
+      console.log("🚀 Socket ready event received:", data);
     });
 
     setSocket(newSocket);

@@ -33,7 +33,25 @@ def on_connect():
         sid = request.sid
         print(f"[socket] Connected: sid={sid}")
 
+        # FIX: Accept token from both query parameter AND auth object
         token = request.args.get("token")
+        
+        # If not in query params, check Socket.IO auth object
+        if not token:
+            auth_data = request.environ.get('HTTP_AUTHORIZATION')
+            if auth_data:
+                # Handle "Bearer <token>" format
+                if auth_data.startswith('Bearer '):
+                    token = auth_data.split('Bearer ')[1]
+                else:
+                    token = auth_data
+        
+        # Also check Socket.IO's native auth mechanism
+        if not token and hasattr(request, 'auth'):
+            token = request.auth.get('token') if isinstance(request.auth, dict) else None
+        
+        print(f"[socket] Token found: {bool(token)}")
+        
         if token:
             try:
                 decoded = decode_token(token)
@@ -46,7 +64,7 @@ def on_connect():
                     socketio.server.environ[sid] = socketio.server.environ.get(sid, {})
                     socketio.server.environ[sid]['user'] = user
                     
-                    print(f"[socket] User {username} authenticated")
+                    print(f"[socket] ✅ User {username} (ID: {user_id}) authenticated successfully")
                     
                     # Mark online
                     User.update_user(user_id, {"online": True})
@@ -62,10 +80,15 @@ def on_connect():
                     # For now, we won't dump all history to avoid overload, 
                     # but we can emit a ready event.
                     emit("ready", {"username": username, "user_id": user_id})
+                else:
+                    print(f"[socket] ❌ User not found for ID: {user_id}")
                     
             except Exception as e:
-                print(f"[socket] Auth failed: {e}")
+                print(f"[socket] ❌ Auth failed: {e}")
+                print(f"[socket] Token (first 20 chars): {token[:20] if token else 'None'}...")
                 # return False  # Uncomment to reject invalid tokens
+        else:
+            print("[socket] ⚠️ No token provided - anonymous connection")
         
     except Exception:
         print("[connect] error:", traceback.format_exc())

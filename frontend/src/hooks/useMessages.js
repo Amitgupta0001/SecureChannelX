@@ -51,23 +51,33 @@ export default function useMessages(chatId) {
       try {
         setSending(true);
 
+        // FIX: Better handling of missing session key
         if (!hasSessionKey) {
-          // must fetch peer key from backend
-          console.warn("Session key missing → run chat handshake");
+          console.error("❌ Encryption session not initialized!");
+          console.error("💡 The chat encryption session should be initialized when opening the chat.");
+          console.error("💡 This is typically done in ChatWindow.jsx via initChatSession().");
+          console.error("💡 If you're seeing this, the session initialization may have failed.");
+
+          // Try to provide helpful feedback to user
+          alert("Encryption session not ready. Please try refreshing the chat or contact support if the issue persists.");
           return;
         }
 
         const encrypted = await encryptMessage(text);
 
+        // FIX: Normalize user ID to use only user.id
         safeEmit("message:send", {
           chat_id: chatId,
           message: {
             message_type: "text",
             encrypted_content: encrypted.ciphertext,
             iv: encrypted.iv,
-            sender_id: user.id || user.user_id,
+            sender_id: user.id,
           },
         });
+      } catch (error) {
+        console.error("❌ Failed to send message:", error);
+        alert("Failed to send message. Please try again.");
       } finally {
         setSending(false);
       }
@@ -111,7 +121,7 @@ export default function useMessages(chatId) {
       chat_id: chatId,
       message_id: messageId,
       emoji,
-      user_id: user.id || user.user_id,
+      user_id: user.id,
     });
   };
 
@@ -121,7 +131,7 @@ export default function useMessages(chatId) {
   const markAsSeen = useCallback(() => {
     safeEmit("message:seen", {
       chat_id: chatId,
-      user_id: user.id || user.user_id,
+      user_id: user.id,
     });
   }, [chatId, safeEmit, user]);
 
@@ -129,7 +139,7 @@ export default function useMessages(chatId) {
      HELPER → is sender
   ------------------------------------------------------ */
   const isSender = (msg) =>
-    msg.sender_id === user.id || msg.user_id === user.user_id;
+    msg.sender_id === user.id || msg.sender_id === user.user_id;
 
   return {
     decryptedMessages,

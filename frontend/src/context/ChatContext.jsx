@@ -95,6 +95,8 @@ export const ChatProvider = ({ children }) => {
       loadMessages(chatId);
 
       if (socket) {
+        // FIX: Use consistent user.id (AuthContext always sets this)
+        console.log(`📥 Joining chat room: chat:${chatId}`);
         safeEmit("join_chat", {
           chat_id: chatId,
           user_id: user?.id,
