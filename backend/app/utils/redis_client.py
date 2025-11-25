@@ -22,24 +22,25 @@ class RedisClient:
         """Initialize Redis connection with fallback"""
         redis_url = os.getenv('REDIS_URL')
         
+        # ----------------------------------------------------
+        # REDIS_URL is missing -> fallback to in-memory
+        # ----------------------------------------------------
         if not redis_url:
-<<<<<<< HEAD
             if os.getenv("FLASK_ENV") == "production":
                 logger.error("❌ [CRITICAL] REDIS_URL not set in PRODUCTION!")
-                logger.error("   Rate limiting will fallback to in-memory (not distributed).")
+                logger.error("   Rate limiting will fallback to in-memory (NOT distributed).")
             else:
                 logger.warning("⚠️  REDIS_URL not configured. Using in-memory storage.")
                 logger.warning("   For production, install Redis: docker run -d -p 6379:6379 redis:alpine")
             return
 
+        # Warn if someone is using localhost Redis in production
         if os.getenv("FLASK_ENV") == "production" and "localhost" in redis_url:
-             logger.warning("⚠️  [WARNING] Connecting to localhost Redis in PRODUCTION.")
-=======
-            logger.warning("⚠️  REDIS_URL not configured. Using in-memory storage.")
-            logger.warning("   For production, install Redis: docker run -d -p 6379:6379 redis:alpine")
-            return
->>>>>>> c53cc80cef1261def5846d97f6e78e4ce939466f
-        
+            logger.warning("⚠️  [WARNING] Connecting to localhost Redis in PRODUCTION.")
+
+        # ----------------------------------------------------
+        # Try connecting to Redis
+        # ----------------------------------------------------
         try:
             import redis
             self.client = redis.from_url(
@@ -56,6 +57,7 @@ class RedisClient:
             
         except ImportError:
             logger.error("❌ Redis library not installed. Run: pip install redis")
+
         except Exception as e:
             logger.error(f"❌ Redis connection failed: {str(e)}")
             logger.warning("   Falling back to in-memory storage")
