@@ -23,6 +23,7 @@ class RedisClient:
         redis_url = os.getenv('REDIS_URL')
         
         if not redis_url:
+<<<<<<< HEAD
             if os.getenv("FLASK_ENV") == "production":
                 logger.error("❌ [CRITICAL] REDIS_URL not set in PRODUCTION!")
                 logger.error("   Rate limiting will fallback to in-memory (not distributed).")
@@ -33,6 +34,11 @@ class RedisClient:
 
         if os.getenv("FLASK_ENV") == "production" and "localhost" in redis_url:
              logger.warning("⚠️  [WARNING] Connecting to localhost Redis in PRODUCTION.")
+=======
+            logger.warning("⚠️  REDIS_URL not configured. Using in-memory storage.")
+            logger.warning("   For production, install Redis: docker run -d -p 6379:6379 redis:alpine")
+            return
+>>>>>>> c53cc80cef1261def5846d97f6e78e4ce939466f
         
         try:
             import redis
