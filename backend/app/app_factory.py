@@ -34,20 +34,20 @@ def create_app():
     )
 
     # ----------------------------------------------------
-    # CORS (FULLY FIXED)
+    # CORS (FINAL MERGED VERSION)
     # ----------------------------------------------------
     CORS(
         app_factory,
-<<<<<<< HEAD
-        resources={r"/*": {"origins": [
-            "http://localhost:5173", 
-            "http://localhost:3000", 
-            "http://10.230.255.71:5173",
-            os.getenv("FRONTEND_URL")
-        ]}},
-=======
-        resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://10.230.255.71:5173"]}},
->>>>>>> c53cc80cef1261def5846d97f6e78e4ce939466f
+        resources={
+            r"/*": {
+                "origins": [
+                    "http://localhost:5173",
+                    "http://localhost:3000",
+                    "http://10.230.255.71:5173",
+                    os.getenv("FRONTEND_URL")
+                ]
+            }
+        },
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         expose_headers=["Content-Type", "Authorization"],
@@ -83,17 +83,16 @@ def create_app():
         limiter.init_app(app_factory)
         print("⚠️  Rate limiting using in-memory storage (not distributed)")
     
-    
-<<<<<<< HEAD
-    socketio.init_app(app_factory, cors_allowed_origins=[
-        "http://localhost:5173", 
-        "http://localhost:3000", 
-        "http://10.230.255.71:5173",
-        os.getenv("FRONTEND_URL")
-    ])
-=======
-    socketio.init_app(app_factory, cors_allowed_origins=["http://localhost:5173", "http://localhost:3000", "http://10.230.255.71:5173"])
->>>>>>> c53cc80cef1261def5846d97f6e78e4ce939466f
+    # SOCKET.IO (FINAL MERGED VERSION)
+    socketio.init_app(
+        app_factory,
+        cors_allowed_origins=[
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://10.230.255.71:5173",
+            os.getenv("FRONTEND_URL")
+        ]
+    )
 
     # ----------------------------------------------------
     # DATABASE INIT
@@ -111,13 +110,8 @@ def create_app():
         from app.utils.azure_blob_storage import blob_storage_service
         
         # Services auto-initialize on import
-        # Track application startup
         track_event("ApplicationStartup", {
-<<<<<<< HEAD
             "environment": os.getenv("FLASK_ENV", "production"),
-=======
-            "environment": os.getenv("FLASK_ENV", "development"),
->>>>>>> c53cc80cef1261def5846d97f6e78e4ce939466f
             "azure_key_vault_enabled": key_vault_service.enabled,
             "azure_monitoring_enabled": monitoring_service.enabled,
             "azure_blob_storage_enabled": blob_storage_service.enabled
@@ -135,7 +129,6 @@ def create_app():
     except Exception as e:
         print(f"⚠️  Azure services initialization skipped: {str(e)}")
         print("📝 Application will run with local fallbacks")
-
 
     # ----------------------------------------------------
     # REGISTER BLUEPRINTS
