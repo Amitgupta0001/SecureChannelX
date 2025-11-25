@@ -1,7 +1,7 @@
 // FILE: src/components/SmartReplyBar.jsx
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import advancedChatApi from "../api/advancedChatApi";
+import advancedChatApi from "../api/advancedchatApi";
 
 export default function SmartReplyBar({
   contextMessages = [],
