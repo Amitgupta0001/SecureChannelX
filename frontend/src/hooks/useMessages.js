@@ -139,7 +139,7 @@ export default function useMessages(chatId) {
      HELPER → is sender
   ------------------------------------------------------ */
   const isSender = (msg) =>
-    msg.sender_id === user.id || msg.sender_id === user.user_id;
+    msg.sender_id === user.id;
 
   return {
     decryptedMessages,

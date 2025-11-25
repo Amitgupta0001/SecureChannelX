@@ -62,7 +62,7 @@ export default function ChatWindow({ chat }) {
   const resolvePeerId = () => {
     if (!chat || !user) return null;
 
-    const me = user.user_id;
+    const me = user.id;
 
     // 1. Standard expected structure
     if (Array.isArray(chat.participants)) {
@@ -125,7 +125,7 @@ export default function ChatWindow({ chat }) {
                 if (typeof ec === "string") {
                   try {
                     ec = JSON.parse(ec);
-                  } catch {}
+                  } catch { }
                 }
 
                 let plaintext;
@@ -198,7 +198,7 @@ export default function ChatWindow({ chat }) {
           if (typeof ec === "string") {
             try {
               ec = JSON.parse(ec);
-            } catch {}
+            } catch { }
           }
 
           const plaintext = await decrypt(chat._id, {
@@ -235,7 +235,7 @@ export default function ChatWindow({ chat }) {
     if (!socket) return;
 
     socket.on("typing:started", ({ user_id }) => {
-      if (user_id !== user.user_id) setTypingUsers([user_id]);
+      if (user_id !== user.id) setTypingUsers([user_id]);
     });
 
     socket.on("typing:stopped", ({ user_id }) =>
@@ -246,7 +246,7 @@ export default function ChatWindow({ chat }) {
       socket.off("typing:started");
       socket.off("typing:stopped");
     };
-  }, [user.user_id, socket]);
+  }, [user.id, socket]);
 
   /** -------------------------------------------
    * Send typing indicator
@@ -259,7 +259,7 @@ export default function ChatWindow({ chat }) {
 
     socket.emit("typing:start", {
       chat_id: chat?._id,
-      user_id: user?.user_id
+      user_id: user?.id
     });
 
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
@@ -267,7 +267,7 @@ export default function ChatWindow({ chat }) {
     typingTimeout.current = setTimeout(() => {
       socket.emit("typing:stop", {
         chat_id: chat?._id,
-        user_id: user?.user_id
+        user_id: user?.id
       });
     }, 1200);
   };
@@ -321,7 +321,7 @@ export default function ChatWindow({ chat }) {
 
     socket.emit("typing:stop", {
       chat_id: chat._id,
-      user_id: user.user_id
+      user_id: user.id
     });
   };
 
@@ -421,7 +421,7 @@ export default function ChatWindow({ chat }) {
         {/* Messages */}
         <div ref={messagesEndRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
           {messages.map((msg, index) => {
-            const sent = isSentByMe(msg, user.user_id);
+            const sent = isSentByMe(msg, user.id);
             const encrypted = msg.encrypted_content && !msg.content;
 
             if (msg.message_type === "poll") {
@@ -430,7 +430,7 @@ export default function ChatWindow({ chat }) {
                   key={msg._id || index}
                   poll={msg.extra}
                   token={token}
-                  currentUserId={user.user_id}
+                  currentUserId={user.id}
                 />
               );
             }
@@ -452,7 +452,7 @@ export default function ChatWindow({ chat }) {
                   messageId={msg._id}
                   chatId={chat._id}
                   token={token}
-                  currentUserId={user.user_id}
+                  currentUserId={user.id}
                   existingReactions={msg.reactions || []}
                 />
               </div>

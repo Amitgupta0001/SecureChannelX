@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 
 # extensions imported from app/__init__.py
-from app import socketio, bcrypt, jwt, cors as old_cors, mail, limiter, talisman
+from app import socketio, bcrypt, jwt, cors as old_cors, mail, limiter
 
 load_dotenv()
 
@@ -49,7 +49,12 @@ def create_app():
     @app_factory.before_request
     def allow_preflight():
         if request.method == "OPTIONS":
-            return jsonify({"status": "OK"}), 200
+            response = jsonify({"status": "OK"})
+            response.headers.add("Access-Control-Allow-Origin", request.headers.get("Origin", "http://localhost:5173"))
+            response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+            response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            response.headers.add("Access-Control-Allow-Credentials", "true")
+            return response, 200
 
     # ----------------------------------------------------
     # EXTENSIONS INIT
@@ -69,21 +74,6 @@ def create_app():
         limiter.init_app(app_factory)
         print("⚠️  Rate limiting using in-memory storage (not distributed)")
     
-    # CSP Config - Military-Grade (tightened)
-    csp = {
-        'default-src': "'self'",
-        'script-src': ["'self'"],  # Removed unsafe-inline and unsafe-eval
-        'style-src': ["'self'", "'unsafe-inline'"],  # Only styles need inline for React
-        'img-src': ["'self'", 'data:', 'blob:'],
-        'connect-src': ["'self'", 'ws://localhost:5050', 'http://localhost:5050', 'ws://localhost:3000', 'http://localhost:3000'],
-        'font-src': ["'self'", 'data:'],
-        'object-src': ["'none'"],
-        'base-uri': ["'self'"],
-        'form-action': ["'self'"],
-        'frame-ancestors': ["'none'"],
-        'upgrade-insecure-requests': True
-    }
-    talisman.init_app(app_factory, content_security_policy=csp, force_https=False)
     
     socketio.init_app(app_factory, cors_allowed_origins=["http://localhost:5173", "http://localhost:3000"])
 

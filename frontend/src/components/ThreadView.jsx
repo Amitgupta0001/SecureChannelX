@@ -68,7 +68,7 @@ export default function ThreadView({
         id: res.thread_id,
         content: text,
         username: user.username,
-        user_id: user.user_id,
+        user_id: user.id,
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -117,7 +117,7 @@ export default function ThreadView({
           className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#0D1117]"
         >
           {threadMessages.map((msg, i) => {
-            const mine = msg.user_id === user.user_id;
+            const mine = msg.user_id === user.id;
 
             return (
               <motion.div

@@ -111,6 +111,8 @@ def register():
         })
 
     except Exception as e:
+        with open("debug_error.log", "a") as f:
+            f.write(f"[REGISTER ERROR] {str(e)}\n")
         current_app.logger.error(f"[REGISTER ERROR] {str(e)}")
         return error("Internal server error", 500)
 
