@@ -2,8 +2,10 @@
 import { useMemo } from "react";
 import { useChat } from "../context/ChatContext";
 import { useGroups } from "../context/GroupContext";
+import { useAuth } from "../context/AuthContext"; // Import useAuth
 
 export default function useChats() {
+  const { user } = useAuth(); // Get current user
   const {
     chats,
     activeChatId,
@@ -33,24 +35,46 @@ export default function useChats() {
   /* -----------------------------------------------------
        GET ACTIVE CHAT OBJECT
   ------------------------------------------------------ */
-  const activeChat = useMemo(() => {
-    return chats.find((c) => c._id === activeChatId) || null;
-  }, [chats, activeChatId]);
-
   /* -----------------------------------------------------
-       MERGE GROUPS + CHATS FOR SIDEBAR (optional)
+       MERGE GROUPS + CHATS FOR SIDEBAR
   ------------------------------------------------------ */
   const sidebarChats = useMemo(() => {
     return sortedChats.map((chat) => {
       const groupData =
         chat.is_group && groups.find((g) => g._id === chat._id);
 
+      // Calculate Title if missing (for private chats)
+      let displayTitle = chat.title;
+
+      // If title is missing or generic "Direct Chat", try to find the other user
+      if ((!displayTitle || displayTitle === "Direct Chat") && Array.isArray(chat.participants)) {
+        const other = chat.participants.find(p => {
+          // Handle both string IDs and object participants
+          const pid = typeof p === 'string' ? p : p.id;
+          return pid !== user?.id;
+        });
+
+        if (other) {
+          displayTitle = typeof other === 'string' ? "Unknown User" : other.username;
+        }
+      }
+
       return {
         ...chat,
+        title: displayTitle || "Chat",
         group: groupData || null,
       };
     });
-  }, [sortedChats, groups]);
+  }, [sortedChats, groups, user]);
+
+  /* -----------------------------------------------------
+       GET ACTIVE CHAT OBJECT
+  ------------------------------------------------------ */
+  const activeChat = useMemo(() => {
+    return sidebarChats.find((c) => c._id === activeChatId) || null;
+  }, [sidebarChats, activeChatId]);
+
+
 
   /* -----------------------------------------------------
        UNREAD COUNT FOR EACH CHAT

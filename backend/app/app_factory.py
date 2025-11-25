@@ -38,7 +38,7 @@ def create_app():
     # ----------------------------------------------------
     CORS(
         app_factory,
-        resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000"]}},
+        resources={r"/*": {"origins": ["http://localhost:5173", "http://localhost:3000", "http://10.230.255.71:5173"]}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         expose_headers=["Content-Type", "Authorization"],
@@ -75,7 +75,7 @@ def create_app():
         print("⚠️  Rate limiting using in-memory storage (not distributed)")
     
     
-    socketio.init_app(app_factory, cors_allowed_origins=["http://localhost:5173", "http://localhost:3000"])
+    socketio.init_app(app_factory, cors_allowed_origins=["http://localhost:5173", "http://localhost:3000", "http://10.230.255.71:5173"])
 
     # ----------------------------------------------------
     # DATABASE INIT

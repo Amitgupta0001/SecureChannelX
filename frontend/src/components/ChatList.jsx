@@ -1,26 +1,25 @@
 // FILE: src/components/ChatList.jsx
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { Search, MoreVertical, MessageSquarePlus, Users } from "lucide-react";
 import NewChatModal from "./NewChatModal";
+import NewGroupModal from "./NewGroupModal";
 
 import { EncryptionContext } from "../context/EncryptionContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function ChatList({ chats, onSelect, activeChatId, onChatCreated }) {
+  const { user } = useAuth();
   const { decryptPreview } = React.useContext(EncryptionContext);
   const [previews, setPreviews] = useState({}); // Map<chatId, previewText>
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [showNewGroupModal, setShowNewGroupModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Decrypt previews when chats change
   React.useEffect(() => {
     chats.forEach(async (chat) => {
       if (chat.last_message_preview === "Encrypted Message" || !chat.last_message_preview) {
-        // If we have the encrypted blob in the chat object (we need backend to send it!)
-        // Currently backend sends 'last_message_preview' string.
-        // We need the backend to send the 'last_message' object or encrypted content.
-        // The chat object usually has 'last_message' field populated?
-        // Let's check backend/app/routes/chats.py or models.
-        // If not, we can't decrypt.
-        // Assuming chat object has 'last_message_content' (encrypted blob)
         if (chat.last_message_encrypted) {
           const decrypted = await decryptPreview(chat._id, chat.last_message_encrypted);
           setPreviews(prev => ({ ...prev, [chat._id]: decrypted }));
@@ -35,78 +34,116 @@ export default function ChatList({ chats, onSelect, activeChatId, onChatCreated 
     console.log("✅ New chat created:", newChat);
     if (onChatCreated) onChatCreated();
     setShowNewChatModal(false);
+    setShowNewGroupModal(false);
   };
 
+  const filteredChats = chats.filter(chat =>
+    (chat.title || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="h-full w-full bg-[#0D1117] text-white overflow-y-auto select-none">
+    <div className="flex flex-col h-full bg-[#111b21] text-[#e9edef]">
       {/* Header */}
-      <div className="p-4 backdrop-blur-md sticky top-0 bg-[#0d1117cc] z-20 border-b border-[#1f2937] flex items-center justify-between">
-        <h2 className="text-xl font-semibold tracking-wide">Chats</h2>
-        <button
-          onClick={() => setShowNewChatModal(true)}
-          className="px-3 py-1.5 text-sm bg-[#1f6feb] rounded-lg hover:bg-[#2563eb] transition"
-        >
-          +
-        </button>
+      <div className="px-4 py-3 bg-[#202c33] flex items-center justify-between shrink-0">
+        <div className="w-10 h-10 rounded-full bg-gray-600 overflow-hidden cursor-pointer">
+          {/* Placeholder Avatar */}
+          <div className="w-full h-full flex items-center justify-center bg-[#6a7175] text-white font-bold">
+            {user?.username?.[0]?.toUpperCase() || "U"}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 text-[#aebac1]">
+          <button
+            title="Create Group"
+            className="hover:text-white transition"
+            onClick={() => setShowNewGroupModal(true)}
+          >
+            <Users size={20} />
+          </button>
+          <button
+            onClick={() => setShowNewChatModal(true)}
+            title="New Chat"
+            className="hover:text-white transition"
+          >
+            <MessageSquarePlus size={20} />
+          </button>
+          <button title="Menu" className="hover:text-white transition">
+            <MoreVertical size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="px-3 py-2 bg-[#111b21] border-b border-[#202c33]">
+        <div className="relative flex items-center bg-[#202c33] rounded-lg h-9 px-3">
+          <Search size={18} className="text-[#aebac1] mr-4" />
+          <input
+            type="text"
+            placeholder="Search or start new chat"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="bg-transparent border-none outline-none text-sm text-[#e9edef] placeholder-[#8696a0] w-full"
+          />
+        </div>
       </div>
 
       {/* Chat List */}
-      <div className="mt-2">
-        {chats.length === 0 && (
-          <div className="p-6 text-center text-gray-400">
-            No chats yet. Start messaging!
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {filteredChats.length === 0 && (
+          <div className="p-8 text-center text-[#8696a0] text-sm">
+            No chats found.
           </div>
         )}
 
-        {chats.map((chat, i) => {
+        {filteredChats.map((chat, i) => {
           const isActive = activeChatId === chat._id;
+          const preview = previews[chat._id] || chat.last_message_preview || "";
 
           return (
-            <motion.div
+            <div
               key={chat._id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
               onClick={() => onSelect(chat._id)}
-              className={`flex gap-3 px-4 py-3 cursor-pointer transition-all
-              border-b border-[#1f2937] 
-              ${isActive ? "bg-[#1e293b]" : "hover:bg-[#111827]"}
+              className={`flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors group
+              ${isActive ? "bg-[#2a3942]" : "hover:bg-[#202c33]"}
             `}
             >
               {/* Avatar */}
-              <div className="w-12 h-12 bg-gradient-to-br from-[#1f6feb] to-[#3b82f6] rounded-full flex items-center justify-center text-lg font-bold shadow-lg">
-                {(chat.title || "D")[0]}
+              <div className="w-12 h-12 rounded-full bg-gray-600 shrink-0 overflow-hidden">
+                <div className="w-full h-full flex items-center justify-center bg-[#6a7175] text-white text-lg font-medium">
+                  {(chat.title || "D")[0]}
+                </div>
               </div>
 
-              {/* Text */}
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-medium text-[16px] truncate">
+              {/* Text Content */}
+              <div className="flex-1 min-w-0 flex flex-col justify-center border-b border-[#222d34] group-hover:border-transparent pb-3 pt-1 h-full ml-1">
+                <div className="flex justify-between items-baseline mb-0.5">
+                  <h3 className="text-[17px] text-[#e9edef] font-normal truncate">
                     {chat.title || "Direct Chat"}
                   </h3>
-
                   {chat.last_message_at && (
-                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                    <span className={`text-xs ${chat.unreadCount > 0 ? "text-[#00a884] font-medium" : "text-[#8696a0]"}`}>
                       {new Date(chat.last_message_at).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
+                        hour12: true
                       })}
                     </span>
                   )}
                 </div>
 
-                <p className="text-sm text-gray-400 truncate mt-0.5">
-                  {previews[chat._id] || chat.last_message_preview || "No messages yet"}
-                </p>
-              </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-[14px] text-[#8696a0] truncate max-w-[90%]">
+                    {preview}
+                  </p>
 
-              {/* Unread badge (optional static) */}
-              {chat.unreadCount > 0 && (
-                <div className="w-6 h-6 bg-[#1f6feb] rounded-full flex items-center justify-center text-xs font-semibold">
-                  {chat.unreadCount}
+                  {chat.unreadCount > 0 && (
+                    <div className="w-5 h-5 bg-[#00a884] rounded-full flex items-center justify-center text-[#111b21] text-xs font-bold shrink-0">
+                      {chat.unreadCount}
+                    </div>
+                  )}
                 </div>
-              )}
-            </motion.div>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -116,6 +153,12 @@ export default function ChatList({ chats, onSelect, activeChatId, onChatCreated 
         isOpen={showNewChatModal}
         onClose={() => setShowNewChatModal(false)}
         onChatCreated={handleChatCreated}
+      />
+
+      <NewGroupModal
+        isOpen={showNewGroupModal}
+        onClose={() => setShowNewGroupModal(false)}
+        onGroupCreated={handleChatCreated}
       />
     </div>
   );

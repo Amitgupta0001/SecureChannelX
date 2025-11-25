@@ -66,7 +66,12 @@ class AuditLog:
 @limiter.limit("5 per minute")
 def register():
     try:
-        data = request.get_json() or {}
+        # DEBUG LOGGING
+        with open("debug_error.log", "a") as f:
+            f.write(f"\n[REGISTER REQUEST] Headers: {request.headers}\n")
+            f.write(f"[REGISTER REQUEST] Data: {request.get_data(as_text=True)}\n")
+
+        data = request.get_json(force=True, silent=True) or {}
 
         username = (data.get("username") or "").strip()
         email = (data.get("email") or "").strip().lower()
@@ -124,7 +129,7 @@ def register():
 @limiter.limit("10 per minute")
 def login():
     try:
-        data = request.get_json() or {}
+        data = request.get_json(force=True, silent=True) or {}
 
         username = (data.get("username") or "").strip()
         password = data.get("password")

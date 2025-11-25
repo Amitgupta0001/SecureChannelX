@@ -3,8 +3,10 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { API_BASE } from "../utils/constants";
+import { useAuth } from "../context/AuthContext";
 
 export default function NewChatModal({ isOpen, onClose, onChatCreated }) {
+    const { user: currentUser } = useAuth();
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function NewChatModal({ isOpen, onClose, onChatCreated }) {
             const res = await axios.get(`${API_BASE}/api/users/list`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setUsers(res.data.data.users || []);
+            setUsers((res.data.data.users || []).filter(u => u.id !== currentUser?.id));
         } catch (err) {
             console.error("Failed to load users:", err);
             setError("Failed to load users");
@@ -118,8 +120,8 @@ export default function NewChatModal({ isOpen, onClose, onChatCreated }) {
                                         key={user.id}
                                         onClick={() => setSelectedUser(user)}
                                         className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition ${selectedUser?.id === user.id
-                                                ? "bg-[#1f6feb] text-white"
-                                                : "bg-[#0D1117] hover:bg-[#161B22] text-gray-300"
+                                            ? "bg-[#1f6feb] text-white"
+                                            : "bg-[#0D1117] hover:bg-[#161B22] text-gray-300"
                                             }`}
                                     >
                                         {/* Avatar */}
@@ -146,23 +148,32 @@ export default function NewChatModal({ isOpen, onClose, onChatCreated }) {
                     </div>
 
                     {/* Footer */}
-                    <div className="p-6 border-t border-[#30363D] flex gap-3">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 px-4 py-2 bg-[#21262D] text-white rounded-lg hover:bg-[#30363D] transition"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleCreateChat}
-                            disabled={!selectedUser || loading}
-                            className="flex-1 px-4 py-2 bg-[#1f6feb] text-white rounded-lg hover:bg-[#2563eb] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? "Creating..." : "Create Chat"}
-                        </button>
+                    <div className="p-6 border-t border-[#30363D] flex flex-col gap-4">
+                        {selectedUser && (
+                            <div className="flex items-center justify-between bg-[#0D1117] p-3 rounded-lg border border-[#30363D]">
+                                <span className="text-gray-400 text-sm">Selected:</span>
+                                <span className="text-white font-medium">{selectedUser.username}</span>
+                            </div>
+                        )}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onClose}
+                                className="flex-1 px-4 py-2 bg-[#21262D] text-white rounded-lg hover:bg-[#30363D] transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreateChat}
+                                disabled={!selectedUser || loading}
+                                className="flex-1 px-4 py-2 bg-[#1f6feb] text-white rounded-lg hover:bg-[#2563eb] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? "Creating..." : "Create Chat"}
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </div>
         </AnimatePresence>
     );
 }
+

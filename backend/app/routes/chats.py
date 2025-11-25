@@ -36,6 +36,22 @@ def create_chat():
         if current_user not in participants:
             participants.append(current_user)
 
+        # Check for existing private chat
+        if chat_type == "private":
+            # Sort participants to ensure consistent order for comparison if needed, 
+            # but MongoDB 'all' query works regardless of order usually. 
+            # However, exact match on participants list is safer if we want unique pair.
+            # We want to find a chat where 'participants' contains exactly these 2 users.
+            
+            existing_chat = db.chats.find_one({
+                "chat_type": "private",
+                "participants": {"$all": participants, "$size": len(participants)}
+            })
+            
+            if existing_chat:
+                existing_chat["_id"] = str(existing_chat["_id"])
+                return success("Chat already exists", {"chat": existing_chat})
+
         # Build chat document using updated chat_model.py
         doc = chat_document(
             chat_type=chat_type,
@@ -85,22 +101,40 @@ def list_user_chats():
     try:
         user_id = get_jwt_identity()
 
+        # Fetch all chats
+        print(f"DEBUG: Fetching chats for user {user_id}")
         cursor = db.chats.find({"participants": user_id}) \
                         .sort("last_message_at", -1)
 
         chats = []
         for c in cursor:
+            # Resolve participant details
+            participant_ids = c.get("participants", [])
+            participant_details = []
+            
+            # Fetch user docs for participants
+            # Optimization: In a real app, you might want to batch this or use $lookup
+            users_cursor = db.users.find({"_id": {"$in": [ObjectId(pid) for pid in participant_ids]}})
+            for u in users_cursor:
+                participant_details.append({
+                    "id": str(u["_id"]),
+                    "username": u.get("username", "Unknown"),
+                    "email": u.get("email", ""),
+                    "avatar": u.get("avatar", "")
+                })
+
             chats.append({
                 "_id": str(c["_id"]),
                 "chat_type": c.get("chat_type"),
                 "title": c.get("title"),
-                "participants": [str(x) for x in c.get("participants", [])],
+                "participants": participant_details, # Now a list of objects
                 "last_message_preview": c.get("last_message_preview"),
                 "last_message_encrypted": c.get("last_message_encrypted"),
                 "last_message_at": (
                     c.get("last_message_at").isoformat()
                     if c.get("last_message_at") else None
                 ),
+                "unread_count": c.get("unread_count", 0) # Ensure unread count is passed
             })
 
         return success(data={"chats": chats})

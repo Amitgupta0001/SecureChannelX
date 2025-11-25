@@ -14,7 +14,7 @@ from app.database import get_db
 from app.utils.response_builder import success, error
 
 messages_bp = Blueprint("messages", __name__, url_prefix="/api/messages")
-db = get_db()
+# db = get_db()
 
 # Track connected socket users
 connected_users = {}
@@ -56,6 +56,7 @@ def handle_connect():
 @socketio.on("message:send")
 @socket_authenticated
 def handle_send_message(data):
+    db = get_db()
     try:
         user_id = get_jwt_identity()
         chat_id = data.get("chat_id")
@@ -119,6 +120,7 @@ def handle_send_message(data):
 @messages_bp.route("/<chat_id>", methods=["GET"])
 @jwt_required()
 def get_messages(chat_id):
+    db = get_db()
     try:
         try:
             chat_oid = ObjectId(chat_id)

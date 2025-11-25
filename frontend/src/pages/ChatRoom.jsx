@@ -62,12 +62,11 @@ export default function ChatRoom() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0D1117] text-white">
+    <div className="flex h-screen bg-[#0b141a] text-[#e9edef] overflow-hidden">
       {/* ---------------- SIDEBAR ---------------- */}
       <div
-        className={`${
-          sidebarOpen ? "w-80" : "w-0 lg:w-80"
-        } transition-all bg-[#111827] border-r border-[#1f2937] overflow-hidden`}
+        className={`${sidebarOpen ? "w-full md:w-[30%] md:min-w-[340px] md:max-w-[450px]" : "hidden md:flex md:w-[30%] md:min-w-[340px] md:max-w-[450px]"
+          } flex flex-col h-full bg-[#111b21] border-r border-[#202c33] z-20`}
       >
         <ChatList
           chats={sidebarChats}
@@ -78,7 +77,7 @@ export default function ChatRoom() {
       </div>
 
       {/* ---------------- MAIN CHAT WINDOW ---------------- */}
-      <div className="flex-1 relative">
+      <div className={`flex-1 relative h-full bg-[#0b141a] ${!sidebarOpen ? "block" : "hidden md:block"}`}>
         {activeChat ? (
           <ChatWindow
             chat={activeChat}
@@ -88,10 +87,17 @@ export default function ChatRoom() {
             onSearch={() => setShowSearch(true)}
             typingUsers={typingUsers}
             sendReaction={sendReaction}
+            onBack={() => setSidebarOpen(true)}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            ← Select a chat to start messaging
+          <div className="flex flex-col items-center justify-center h-full text-[#8696a0] bg-[#222e35] border-b-[6px] border-[#00a884]">
+            <div className="text-center space-y-4">
+              <h1 className="text-3xl font-light text-[#e9edef]">SecureChannelX for Web</h1>
+              <p className="text-sm">Send and receive messages without keeping your phone online.<br />Use SecureChannelX on up to 4 linked devices and 1 phone.</p>
+              <div className="flex items-center justify-center gap-2 text-xs mt-8">
+                <span className="text-[#667781]">🔒 End-to-end encrypted</span>
+              </div>
+            </div>
           </div>
         )}
       </div>

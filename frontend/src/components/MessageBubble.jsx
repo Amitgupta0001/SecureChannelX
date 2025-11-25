@@ -55,10 +55,10 @@ export default function MessageBubble({
     >
       {/* MESSAGE BUBBLE */}
       <div
-        className={`relative px-4 py-2 rounded-2xl shadow-md text-sm break-words 
+        className={`relative px-4 py-2 rounded-lg shadow-sm text-sm break-words max-w-full
           ${isSent
-            ? "bg-[#1f6feb] text-white rounded-br-none"
-            : "bg-[#111827] text-gray-200 rounded-bl-none"
+            ? "bg-[#005c4b] text-[#e9edef] rounded-tr-none"
+            : "bg-[#202c33] text-[#e9edef] rounded-tl-none"
           }
         `}
       >

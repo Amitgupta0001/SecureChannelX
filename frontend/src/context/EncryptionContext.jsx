@@ -4,6 +4,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
 } from "react";
 
 import { useAuth } from "./AuthContext";
@@ -43,8 +44,10 @@ export const EncryptionProvider = ({ children }) => {
   const [identity, setIdentity] = useState(null);
   const [ratchets, setRatchets] = useState({});
   const [groupSessions, setGroupSessions] = useState({});
-  const [myGroupKeys, setMyGroupKeys] = useState({});
+  // const [myGroupKeys, setMyGroupKeys] = useState({}); // Removed in favor of ref
+  const groupKeysRef = useRef({}); // Synchronous key storage
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState(null);
 
   /* -------------------------------------------------------
        LOAD OR CREATE IDENTITY & PREKEYS
@@ -57,53 +60,71 @@ export const EncryptionProvider = ({ children }) => {
       return;
     }
 
-    (async () => {
-      let idKey = await loadKey(user.id, "identity");
+    const initPromise = (async () => {
+      try {
+        console.log("🔐 EncryptionContext: Loading keys for user:", user?.id);
 
-      if (!idKey) {
-        console.log("Generating new Identity & PreKeys...");
-
-        try {
-          const bundle = await generatePreKeyBundle();
-
-          // Save keys
-          await saveKey(user.id, "identity", bundle.identityKey);
-          await saveKey(user.id, "signedPreKey", bundle.signedPreKey);
-          await saveKey(user.id, "kyberPreKey", bundle.kyberPreKey);
-
-          idKey = bundle.identityKey;
-
-          // Upload Public Bundle to Server
-          try {
-            const publicBundle = {
-              identity_key: toBase64(bundle.identityKey.pub),
-              signed_pre_key: toBase64(bundle.signedPreKey.pub),
-              kyber_pre_key: toBase64(bundle.kyberPreKey.pub),
-              one_time_pre_keys: bundle.oneTimePreKeys.map((k) =>
-                toBase64(k.pub)
-              ),
-            };
-            await keyApi.uploadBundle(publicBundle, token);
-          } catch (uploadErr) {
-            console.error("Failed to upload keys to server:", uploadErr);
-          }
-        } catch (err) {
-          console.error("❌ Failed to generate PreKeys", err);
-          setReady(false);
+        if (!user?.id) {
+          console.warn("🔐 EncryptionContext: User ID missing, skipping init");
           return;
         }
+
+        let idKey = await loadKey(user.id, "identity");
+        console.log("🔐 EncryptionContext: Loaded identity key:", idKey ? "FOUND" : "MISSING");
+
+        if (!idKey) {
+          console.log("Generating new Identity & PreKeys...");
+
+          try {
+            const bundle = await generatePreKeyBundle();
+
+            // Save keys
+            await saveKey(user.id, "identity", bundle.identityKey);
+            await saveKey(user.id, "signedPreKey", bundle.signedPreKey);
+            await saveKey(user.id, "kyberPreKey", bundle.kyberPreKey);
+
+            idKey = bundle.identityKey;
+
+            // Upload Public Bundle to Server
+            try {
+              const publicBundle = {
+                identity_key: toBase64(bundle.identityKey.pub),
+                signed_pre_key: toBase64(bundle.signedPreKey.pub),
+                kyber_pre_key: toBase64(bundle.kyberPreKey.pub),
+                one_time_pre_keys: bundle.oneTimePreKeys.map((k) =>
+                  toBase64(k.pub)
+                ),
+              };
+              await keyApi.uploadBundle(publicBundle, token);
+            } catch (uploadErr) {
+              console.error("Failed to upload keys to server:", uploadErr);
+            }
+          } catch (err) {
+            console.error("❌ Failed to generate PreKeys", err);
+            throw err;
+          }
+        }
+
+        setIdentity(idKey);
+        setReady(true);
+        setError(null);
+      } catch (err) {
+        console.error("❌ Critical EncryptionContext Error:", err);
+        setError(err.message || "Encryption initialization failed");
+        setReady(false);
       }
-
-      setIdentity(idKey);
-      setReady(true);
     })();
-  }, [user, token]);
 
-  /* -------------------------------------------------------
-      IMPORTANT FIX:
-      ❌ Removed the second useEffect that called initIdentity()
-      because initIdentity() DOES NOT EXIST and created a crash.
-  -------------------------------------------------------- */
+    // Timeout fallback
+    const timeoutId = setTimeout(() => {
+      if (!ready) {
+        console.error("❌ EncryptionContext initialization timed out");
+        setError("Initialization timed out. Please refresh.");
+      }
+    }, 15000); // 15 seconds
+
+    return () => clearTimeout(timeoutId);
+  }, [user, token]);
 
   /* -------------------------------------------------------
       INITIALIZE CHAT SESSION (X3DH)
@@ -115,7 +136,16 @@ export const EncryptionProvider = ({ children }) => {
     try {
       console.log("Initializing X3DH session for chat", chatId);
 
-      const peerBundleData = await keyApi.getBundle(peerId, token);
+      let peerBundleData;
+      try {
+        peerBundleData = await keyApi.getBundle(peerId, token);
+      } catch (err) {
+        if (err.response && err.response.status === 404) {
+          console.warn(`⚠️ Peer ${peerId} has no keys uploaded. Waiting for them to come online.`);
+          return; // Exit gracefully, do not throw
+        }
+        throw err;
+      }
 
       const peerBundle = {
         identityKey: fromBase64(peerBundleData.identity_key),
@@ -256,11 +286,11 @@ export const EncryptionProvider = ({ children }) => {
   };
 
   const distributeGroupKey = async (groupId, participants) => {
-    let myKey = myGroupKeys[groupId];
+    let myKey = groupKeysRef.current[groupId];
     if (!myKey) {
       myKey = SenderKeyRatchet.generate();
-      setMyGroupKeys(prev => ({ ...prev, [groupId]: myKey }));
-      throw new Error("GROUP_KEY_MISSING");
+      groupKeysRef.current[groupId] = myKey;
+      // Do NOT throw here. We just generated it, now distribute it.
     }
 
     const keyData = myKey.serialize();
@@ -292,10 +322,10 @@ export const EncryptionProvider = ({ children }) => {
   };
 
   const encryptGroup = async (groupId, text) => {
-    let myKey = myGroupKeys[groupId];
+    let myKey = groupKeysRef.current[groupId];
     if (!myKey) {
       myKey = SenderKeyRatchet.generate();
-      setMyGroupKeys(prev => ({ ...prev, [groupId]: myKey }));
+      groupKeysRef.current[groupId] = myKey;
       throw new Error("GROUP_KEY_MISSING");
     }
 
@@ -334,7 +364,8 @@ export const EncryptionProvider = ({ children }) => {
         encryptGroup,
         decryptGroup,
         distributeGroupKey,
-        handleDistributionMessage
+        handleDistributionMessage,
+        error
       }}
     >
       {children}

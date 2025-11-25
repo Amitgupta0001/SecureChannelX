@@ -17,7 +17,7 @@ export const getRandomBytes = (len) => {
 
 // ---- X25519 ----
 export const generateKeyPairX25519 = () => {
-    const priv = x25519.utils.randomPrivateKey();
+    const priv = getRandomBytes(32);
     const pub = x25519.getPublicKey(priv);
     return { priv, pub };
 };
@@ -74,7 +74,7 @@ export const decryptAesGcm = async (key, ciphertext, nonce, aad = new Uint8Array
 export const generateKeyPairKyber = async () => generateKeyPairX25519();
 
 export const encapsulateKyber = async (pub) => {
-    const priv = x25519.utils.randomPrivateKey();
+    const priv = getRandomBytes(32);
     const sharedSecret = x25519.getSharedSecret(priv, pub);
     return { ciphertext: pub, sharedSecret };
 };

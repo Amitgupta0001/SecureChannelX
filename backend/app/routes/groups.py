@@ -16,7 +16,7 @@ from app.models.chat_model import chat_document
 
 # IMPORTANT: MUST begin with /api
 groups_bp = Blueprint("groups", __name__, url_prefix="/api/groups")
-db = get_db()
+# db = get_db()  <-- MOVED INSIDE ROUTES
 
 
 # ================================================================
@@ -25,6 +25,7 @@ db = get_db()
 @groups_bp.route("/create", methods=["POST"])
 @jwt_required()
 def create_group():
+    db = get_db()
     try:
         data = request.get_json() or {}
         title = data.get("title")
@@ -68,7 +69,7 @@ def create_group():
 
     except Exception as e:
         current_app.logger.error(f"[GROUP CREATE ERROR] {e}")
-        return error("Failed to create group", 500)
+        return error(f"Failed to create group: {str(e)}", 500)
 
 
 # ================================================================
@@ -78,6 +79,7 @@ def create_group():
 @jwt_required()
 def get_user_groups():
     """GET /api/groups/list"""
+    db = get_db()
     try:
         user_id = get_jwt_identity()
         groups = list(db.groups.find({"members": user_id}))
@@ -98,6 +100,7 @@ def get_user_groups():
 @groups_bp.route("/<group_id>/add", methods=["POST"])
 @jwt_required()
 def add_group_member(group_id):
+    db = get_db()
     try:
         data = request.get_json() or {}
         member_id = data.get("member_id")

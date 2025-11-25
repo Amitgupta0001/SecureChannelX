@@ -9,7 +9,8 @@ def chat_document(
     participants: list,
     created_by: str,
     title: str = None,
-    description: str = None
+    description: str = None,
+    group_id: str = None
 ):
     """
     SecureChannelX Chat Model
@@ -46,6 +47,7 @@ def chat_document(
         # Metadata
         "title": title if chat_type == "group" else None,
         "description": description if chat_type == "group" else None,
+        "group_id": group_id,
         "created_by": created_by,
 
         # Time tracking
