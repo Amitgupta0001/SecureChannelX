@@ -57,15 +57,31 @@ def create_app():
     bcrypt.init_app(app_factory)
     jwt.init_app(app_factory)
     mail.init_app(app_factory)
-    limiter.init_app(app_factory)
     
-    # CSP Config
+    # Initialize Redis client
+    from app.utils.redis_client import redis_client
+    
+    # Configure rate limiter with Redis or in-memory fallback
+    if redis_client.enabled:
+        limiter.init_app(app_factory, storage_uri=os.getenv('REDIS_URL'))
+        print("✅ Rate limiting using Redis (distributed)")
+    else:
+        limiter.init_app(app_factory)
+        print("⚠️  Rate limiting using in-memory storage (not distributed)")
+    
+    # CSP Config - Military-Grade (tightened)
     csp = {
-        'default-src': '\'self\'',
-        'script-src': ['\'self\'', '\'unsafe-inline\'', '\'unsafe-eval\''], # unsafe-eval for some dev tools/libraries
-        'style-src': ['\'self\'', '\'unsafe-inline\''],
-        'img-src': ['\'self\'', 'data:', 'blob:'],
-        'connect-src': ['\'self\'', 'ws://localhost:5050', 'http://localhost:5050']
+        'default-src': "'self'",
+        'script-src': ["'self'"],  # Removed unsafe-inline and unsafe-eval
+        'style-src': ["'self'", "'unsafe-inline'"],  # Only styles need inline for React
+        'img-src': ["'self'", 'data:', 'blob:'],
+        'connect-src': ["'self'", 'ws://localhost:5050', 'http://localhost:5050', 'ws://localhost:3000', 'http://localhost:3000'],
+        'font-src': ["'self'", 'data:'],
+        'object-src': ["'none'"],
+        'base-uri': ["'self'"],
+        'form-action': ["'self'"],
+        'frame-ancestors': ["'none'"],
+        'upgrade-insecure-requests': True
     }
     talisman.init_app(app_factory, content_security_policy=csp, force_https=False)
     

@@ -20,10 +20,18 @@ if __name__ == "__main__":
 
     debug_mode = os.getenv("FLASK_DEBUG", "False").lower() == "true"
     
+    # Only allow unsafe Werkzeug in development
+    # In production, use Gunicorn with eventlet workers
+    allow_unsafe = os.getenv("FLASK_ENV", "production") == "development"
+    
+    if not allow_unsafe:
+        print("⚠️  Production mode detected. Use Gunicorn for production:")
+        print("   gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:5050 'app:create_app()'")
+    
     socketio.run(
         app,
         host="0.0.0.0",
         port=5050,
         debug=debug_mode,
-        allow_unsafe_werkzeug=True   # Only needed in development
+        allow_unsafe_werkzeug=allow_unsafe
     )

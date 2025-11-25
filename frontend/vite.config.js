@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     server: {
-      port: 3000,
+      port: 5173,  // Vite default port (consistent with documentation)
       cors: true,
       strictPort: true,
 
