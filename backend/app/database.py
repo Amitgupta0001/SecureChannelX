@@ -1,5 +1,6 @@
 # backend/app/database.py
 
+import os
 from flask import current_app
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
@@ -21,14 +22,11 @@ class Database:
                 "mongodb://localhost:27017/securechannelx"
             )
 
-<<<<<<< HEAD
             # SAFETY CHECK: Warn if using localhost in production
             if os.getenv("FLASK_ENV") == "production" and "localhost" in mongodb_uri:
                 print("❌ [CRITICAL] Attempting to connect to localhost MongoDB in PRODUCTION!")
                 print("   Please set MONGODB_URI environment variable.")
 
-=======
->>>>>>> c53cc80cef1261def5846d97f6e78e4ce939466f
             # Choose TLS when required (Atlas)
             if "mongodb+srv" in mongodb_uri:
                 self.client = MongoClient(mongodb_uri, tlsCAFile=certifi.where())
