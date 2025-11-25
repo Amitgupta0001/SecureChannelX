@@ -38,8 +38,8 @@ Thumbs.db
 # VSCode
 .vscode/
 *.code-workspace
-.tests/
-DEVELOPMENT.md
+backend/tests/
+DEPLOYMENT.md
 # JetBrains
 .idea/
 

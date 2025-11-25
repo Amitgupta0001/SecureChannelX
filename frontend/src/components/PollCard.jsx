@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import advancedChatApi from "../api/advancedChatApi";
+import advancedChatApi from "../api/advancedchatApi";
 import socket from "../sockets/socket";
 
 /**
