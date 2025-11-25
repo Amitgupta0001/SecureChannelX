@@ -37,11 +37,29 @@ class User:
 
     @staticmethod
     def add_device(user_id: str, device_info: dict):
-        return get_db().user_devices.insert_one({
-            "user_id": user_id,
-            **device_info,
-            "last_active": now_utc()
-        })
+        """
+        Add a device to the user's device list.
+        device_info: { "device_id": int, "name": str, "registration_id": int }
+        """
+        return get_db().users.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$addToSet": {
+                    "devices": {
+                        "device_id": device_info["device_id"],
+                        "name": device_info.get("name", "Unknown Device"),
+                        "registration_id": device_info.get("registration_id"),
+                        "last_active": now_utc()
+                    }
+                }
+            }
+        )
+
+    @staticmethod
+    def get_devices(user_id: str):
+        """Return list of active devices for a user."""
+        user = get_db().users.find_one({"_id": ObjectId(user_id)}, {"devices": 1})
+        return user.get("devices", []) if user else []
 
 
 # =========================================================

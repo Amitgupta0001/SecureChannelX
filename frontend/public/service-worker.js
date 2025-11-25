@@ -5,8 +5,8 @@ const ASSETS = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/icons/icon-144.png",
+  "/icons/icon-144.png"
 ];
 
 // Install SW – cache static assets
@@ -60,4 +60,56 @@ self.addEventListener("activate", (event) => {
   );
 
   self.clients.claim();
+});
+
+// Push Notification Event
+self.addEventListener("push", (event) => {
+  console.log("[ServiceWorker] Push Received");
+
+  let data = { title: "New Message", body: "You have a new message", url: "/" };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || "/"
+    }
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Notification Click Event
+self.addEventListener("notificationclick", (event) => {
+  console.log("[ServiceWorker] Notification click Received");
+
+  event.notification.close();
+
+  event.waitUntil(
+    clients.matchAll({ type: "window" }).then((windowClients) => {
+      // Check if there is already a window for this app
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url === event.notification.data.url && "focus" in client) {
+          return client.focus();
+        }
+      }
+      // If not, open a new window
+      if (clients.openWindow) {
+        return clients.openWindow(event.notification.data.url);
+      }
+    })
+  );
 });

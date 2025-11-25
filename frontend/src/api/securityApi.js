@@ -47,10 +47,10 @@ export default {
 
   // ----------------------------------------
   // GET DEVICES
-  // GET /security/devices
+  // GET /api/users/devices
   // ----------------------------------------
   async getDevices() {
-    const res = await axios.get(`${API}/security/devices`, {
+    const res = await axios.get(`${API}/api/users/devices`, {
       headers: authHeader(),
     });
     return res.data;
@@ -58,10 +58,10 @@ export default {
 
   // ----------------------------------------
   // REMOVE DEVICE
-  // DELETE /security/devices/:id
+  // DELETE /api/users/devices/:id
   // ----------------------------------------
   async removeDevice(deviceId) {
-    const res = await axios.delete(`${API}/security/devices/${deviceId}`, {
+    const res = await axios.delete(`${API}/api/users/devices/${deviceId}`, {
       headers: authHeader(),
     });
     return res.data;

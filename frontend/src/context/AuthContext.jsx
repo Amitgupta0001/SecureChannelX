@@ -86,6 +86,7 @@ export const AuthProvider = ({ children }) => {
       const res = await axios.post(`${API}/api/auth/login`, {
         username,
         password,
+        device_name: navigator.userAgent || "Unknown Web Client"
       });
 
       console.log("🟢 Login API response:", res.data);
@@ -102,7 +103,7 @@ export const AuthProvider = ({ children }) => {
 
       // Extract fields from actual backend response
       const access_token = data.access_token;
-      const user = data.user; // Backend returns {access_token, user: {id, username}}
+      const user = data.user; // Backend returns {access_token, user: {id, username, deviceId}}
 
       if (!access_token || !user || !user.id || !user.username) {
         console.error("🔴 Invalid server response:", data);
@@ -112,7 +113,8 @@ export const AuthProvider = ({ children }) => {
       // Construct user object for frontend
       const userObj = {
         id: user.id,
-        username: user.username
+        username: user.username,
+        deviceId: user.deviceId // Store deviceId
       };
 
       console.log("🟢 Saving session with user:", userObj);

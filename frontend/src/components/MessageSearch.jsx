@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import messageApi from "../api/messageApi";
 
-export default function MessageSearch({ roomId, token, onClose }) {
+export default function MessageSearch({ messages, onClose }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,16 +15,17 @@ export default function MessageSearch({ roomId, token, onClose }) {
     } else {
       setResults([]);
     }
-  }, [query]);
+  }, [query, messages]);
 
-  const doSearch = async () => {
+  const doSearch = () => {
     setLoading(true);
-    try {
-      const data = await messageApi.searchMessages(query, roomId, token);
-      setResults(data.results || []);
-    } catch (err) {
-      console.error("Search error:", err);
-    }
+    // Client-side search on decrypted messages
+    const hits = messages.filter(m =>
+      m.content &&
+      typeof m.content === 'string' &&
+      m.content.toLowerCase().includes(query.toLowerCase())
+    );
+    setResults(hits);
     setLoading(false);
   };
 

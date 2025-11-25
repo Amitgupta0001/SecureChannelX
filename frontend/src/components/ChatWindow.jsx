@@ -6,7 +6,10 @@ import { EncryptionContext } from "../context/EncryptionContext";
 import messageApi from "../api/messageApi";
 import fileUploadApi from "../api/fileUploadApi";
 
-import socket from "../sockets/socket";
+// Updated import to include safeEmit
+import socket, { safeEmit } from "../sockets/socket";
+
+// UI Components
 
 // UI Components
 import MessageBubble from "./MessageBubble";
@@ -270,8 +273,48 @@ export default function ChatWindow({ chat, onBack }) {
     if (!socket) return;
     socket.on("message:new", handler);
 
-    return () => socket.off("message:new", handler);
-  }, [chat, decrypt]);
+    // Listener for Sender Key Distribution (Group Encryption)
+    const privateMsgHandler = async (data) => {
+      console.log("📨 Received private message (likely key distribution)", data);
+      if (data.encrypted_content) {
+        try {
+          let ec = data.encrypted_content;
+          if (typeof ec === "string") {
+            try { ec = JSON.parse(ec); } catch { }
+          }
+
+          // Decrypt using the 1:1 chat session
+          const plaintext = await decrypt(data.chat_id, {
+            header: ec.header,
+            ciphertext: ec.ciphertext,
+            nonce: ec.nonce,
+            x3dh_header: ec.x3dh_header // Might be undefined if session exists
+          });
+
+          try {
+            const payload = JSON.parse(plaintext);
+            if (payload.type === "sender_key_distribution") {
+              console.log("🔑 Received Group Sender Key!", payload);
+              await handleDistributionMessage(payload);
+            }
+          } catch (jsonErr) {
+            // Not a JSON system message, maybe just a text?
+            // If we want to show it in UI, we'd need to add to messages
+            // But for now, we assume private_message is mainly for signaling
+          }
+        } catch (e) {
+          console.error("Failed to process private message", e);
+        }
+      }
+    };
+
+    socket.on("private_message", privateMsgHandler);
+
+    return () => {
+      socket.off("message:new", handler);
+      socket.off("private_message", privateMsgHandler);
+    };
+  }, [chat, decrypt, handleDistributionMessage]);
 
   /** -------------------------------------------
    * Typing events
@@ -302,7 +345,7 @@ export default function ChatWindow({ chat, onBack }) {
 
     if (!socket) return;
 
-    socket.emit("typing:start", {
+    safeEmit("typing:start", {
       chat_id: chat?._id,
       user_id: user?.id
     });
@@ -310,7 +353,7 @@ export default function ChatWindow({ chat, onBack }) {
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
 
     typingTimeout.current = setTimeout(() => {
-      socket.emit("typing:stop", {
+      safeEmit("typing:stop", {
         chat_id: chat?._id,
         user_id: user?.id
       });
@@ -346,7 +389,7 @@ export default function ChatWindow({ chat, onBack }) {
           if (e.message === "GROUP_KEY_MISSING") {
             const dist = await distributeGroupKey(chat._id, chat.participants || []);
             dist.forEach((d) =>
-              socket.emit("private_message", {
+              safeEmit("private_message", {
                 to_user_id: d.userId,
                 encrypted_content: d.content
               })
@@ -389,7 +432,7 @@ export default function ChatWindow({ chat, onBack }) {
       }
     }
 
-    socket.emit("message:send", {
+    safeEmit("message:send", {
       chat_id: chat._id,
       encrypted_content: encryptedData,
       message_type: "text"
@@ -397,7 +440,7 @@ export default function ChatWindow({ chat, onBack }) {
 
     setText("");
 
-    socket.emit("typing:stop", {
+    safeEmit("typing:stop", {
       chat_id: chat._id,
       user_id: user.id
     });
@@ -606,8 +649,7 @@ export default function ChatWindow({ chat, onBack }) {
 
       {openSearch && (
         <MessageSearch
-          roomId={chat._id}
-          token={token}
+          messages={messages}
           onClose={() => setOpenSearch(false)}
         />
       )}

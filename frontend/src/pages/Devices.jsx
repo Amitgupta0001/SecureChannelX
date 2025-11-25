@@ -83,7 +83,7 @@ export default function Devices() {
         {!loading &&
           devices.map((device) => (
             <motion.div
-              key={device.id}
+              key={device.device_id}
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -95,7 +95,7 @@ export default function Devices() {
 
                 <div>
                   <div className="text-lg font-semibold">
-                    {device.device_name || "Unknown Device"}
+                    {device.name || "Unknown Device"}
                   </div>
 
                   <div className="text-gray-400 text-sm">
@@ -125,7 +125,7 @@ export default function Devices() {
                 )}
 
                 <button
-                  onClick={() => removeDevice(device.id)}
+                  onClick={() => removeDevice(device.device_id)}
                   className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 transition rounded-lg text-sm"
                 >
                   <Trash2 size={16} />

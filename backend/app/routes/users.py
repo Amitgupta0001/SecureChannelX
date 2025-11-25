@@ -71,3 +71,47 @@ def list_users():
     except Exception as e:
         current_app.logger.error(f"[LIST USERS ERROR] {str(e)}")
         return error("Failed to fetch users", 500)
+
+
+# ============================================================
+#                   DEVICE MANAGEMENT
+# ============================================================
+@users_bp.route("/devices", methods=["GET"])
+@jwt_required()
+def get_devices():
+    """Get list of active devices for current user"""
+    try:
+        user_id = get_jwt_identity()
+        # Import User model here to avoid circular imports if any, 
+        # or just use the one we imported if we add it to top level
+        from app.models.models import User 
+        
+        devices = User.get_devices(user_id)
+        return success(data={"devices": devices})
+    except Exception as e:
+        current_app.logger.error(f"[GET DEVICES ERROR] {str(e)}")
+        return error("Failed to fetch devices", 500)
+
+@users_bp.route("/devices/<int:device_id>", methods=["DELETE"])
+@jwt_required()
+def revoke_device(device_id):
+    """Revoke a device (remove from list and delete keys)"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Remove from user's device list
+        result = db.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$pull": {"devices": {"device_id": device_id}}}
+        )
+        
+        if result.modified_count == 0:
+            return error("Device not found", 404)
+            
+        # Also delete keys for this device
+        db.key_bundles.delete_one({"user_id": user_id, "device_id": device_id})
+        
+        return success("Device revoked successfully")
+    except Exception as e:
+        current_app.logger.error(f"[REVOKE DEVICE ERROR] {str(e)}")
+        return error("Failed to revoke device", 500)

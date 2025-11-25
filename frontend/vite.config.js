@@ -5,10 +5,11 @@ import react from "@vitejs/plugin-react";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
-  const API = env.VITE_API_BASE || "http://localhost:5050";
-  const SOCKET = env.VITE_SOCKET_URL || "http://localhost:5050";
+  // Force localhost for verification
+  const API = "http://localhost:5050";
+  const SOCKET = "http://localhost:5050";
 
-  console.log("🔧 Loaded ENV:");
+  console.log("🔧 Loaded ENV (Forced Localhost):");
   console.log("VITE_API_BASE =", API);
   console.log("VITE_SOCKET_URL =", SOCKET);
 
@@ -16,17 +17,16 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     server: {
-      port: 5173,  // Vite default port (consistent with documentation)
+      port: 5173,
       cors: true,
       strictPort: true,
 
       proxy: {
-        // REST API → Backend (auth endpoints are at /api/auth/*)
-        "/api/auth": {
+        // Proxy ALL /api requests to backend
+        "/api": {
           target: API,
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path, // Keep /api/auth exactly
         },
 
         // Socket.io → Realtime server

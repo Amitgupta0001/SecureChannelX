@@ -53,67 +53,6 @@ def handle_connect():
 # ======================================================
 #   SOCKET: SEND ENCRYPTED MESSAGE (ZERO KNOWLEDGE)
 # ======================================================
-@socketio.on("message:send")
-@socket_authenticated
-def handle_send_message(data):
-    db = get_db()
-    try:
-        user_id = get_jwt_identity()
-        chat_id = data.get("chat_id")
-        
-        # 'content' here is expected to be the encrypted blob (ciphertext)
-        # It might be a JSON string or object containing { header, ciphertext, nonce }
-        encrypted_content = data.get("content") 
-        message_type = data.get("message_type", "text")
-        
-        # Optional: X3DH header for first message
-        x3dh_header = data.get("x3dh_header")
-
-        if not chat_id or not encrypted_content:
-            emit("error", {"message": "chat_id and content required"})
-            return
-
-        try:
-            chat_oid = ObjectId(chat_id)
-        except:
-            emit("error", {"message": "Invalid chat_id"})
-            return
-
-        # Store message exactly as received (Zero Knowledge)
-        message_doc = {
-            "chat_id": chat_oid,
-            "sender_id": user_id,
-            "encrypted_content": encrypted_content, # BLOB
-            "x3dh_header": x3dh_header, # Optional for session init
-            "message_type": message_type,
-            "created_at": datetime.utcnow(),
-            "e2e_encrypted": True,
-            "reactions": [],
-            "is_deleted": False,
-            "is_edited": False,
-        }
-
-        inserted = db.messages.insert_one(message_doc)
-        msg_id = str(inserted.inserted_id)
-
-        broadcast_data = {
-            "id": msg_id,
-            "chat_id": chat_id,
-            "user_id": user_id,
-            "encrypted_content": encrypted_content,
-            "x3dh_header": x3dh_header,
-            "timestamp": message_doc["created_at"].isoformat(),
-            "message_type": message_type,
-            "e2e_encrypted": True,
-        }
-
-        # Broadcast to chat room
-        socketio.emit("message:new", {"message": broadcast_data}, room=f"chat:{chat_id}")
-
-    except Exception as e:
-        logging.error(f"[message send error] {e}")
-        emit("error", {"message": "Failed to send message"})
-
 # ======================================================
 #   REST: GET MESSAGES
 # ======================================================

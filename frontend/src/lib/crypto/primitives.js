@@ -84,9 +84,48 @@ export const decapsulateKyber = async (cipher, priv) => {
 };
 
 // ---- Utilities ----
-export const toBase64 = (buf) => btoa(String.fromCharCode(...buf));
-export const fromBase64 = (str) =>
-    new Uint8Array(atob(str).split("").map(c => c.charCodeAt(0)));
+// ---- Utilities ----
+/**
+ * Convert a buffer to a Base64 string.
+ * Handles Uint8Array, ArrayBuffer, TypedArray views, regular arrays, and null/undefined.
+ */
+export const toBase64 = (buf) => {
+    if (!buf) {
+        console.error('toBase64: received null/undefined');
+        return '';
+    }
+    // Convert supported types to Uint8Array
+    if (!(buf instanceof Uint8Array)) {
+        if (ArrayBuffer.isView(buf)) {
+            buf = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+        } else if (buf instanceof ArrayBuffer) {
+            buf = new Uint8Array(buf);
+        } else if (Array.isArray(buf)) {
+            buf = new Uint8Array(buf);
+        } else {
+            console.error('toBase64: invalid buffer type', typeof buf, buf);
+            throw new TypeError(`toBase64: expected Uint8Array, got ${typeof buf}`);
+        }
+    }
+    return btoa(String.fromCharCode(...buf));
+};
+
+/**
+ * Convert a Base64 string back to a Uint8Array.
+ * Handles empty or non‑string inputs gracefully.
+ */
+export const fromBase64 = (str) => {
+    if (!str || typeof str !== 'string') {
+        console.error('fromBase64: invalid input', typeof str);
+        return new Uint8Array(0);
+    }
+    try {
+        return new Uint8Array(atob(str).split('').map(c => c.charCodeAt(0)));
+    } catch (e) {
+        console.error('fromBase64: decode failed', e);
+        return new Uint8Array(0);
+    }
+};
 
 export const toHex = (buf) =>
     Array.from(buf)

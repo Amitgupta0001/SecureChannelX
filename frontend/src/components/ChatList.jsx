@@ -14,6 +14,7 @@ export default function ChatList({ chats, onSelect, activeChatId, onChatCreated 
   const [previews, setPreviews] = useState({}); // Map<chatId, previewText>
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Decrypt previews when chats change
@@ -67,11 +68,50 @@ export default function ChatList({ chats, onSelect, activeChatId, onChatCreated 
           >
             <MessageSquarePlus size={20} />
           </button>
-          <button title="Menu" className="hover:text-white transition">
-            <MoreVertical size={20} />
-          </button>
+
+          {/* MENU DROPDOWN */}
+          <div className="relative">
+            <button
+              title="Menu"
+              className="hover:text-white transition"
+              onClick={() => setShowMenu(!showMenu)}
+            >
+              <MoreVertical size={20} />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-8 w-48 bg-[#233138] rounded-lg shadow-lg py-2 z-50 border border-[#111b21]">
+                <button
+                  onClick={() => { window.location.href = "/profile"; }}
+                  className="w-full text-left px-4 py-2 hover:bg-[#111b21] text-[#e9edef] text-sm"
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => { window.location.href = "/devices"; }}
+                  className="w-full text-left px-4 py-2 hover:bg-[#111b21] text-[#e9edef] text-sm"
+                >
+                  Linked Devices
+                </button>
+                <button
+                  onClick={() => { window.location.href = "/login"; localStorage.clear(); }}
+                  className="w-full text-left px-4 py-2 hover:bg-[#111b21] text-red-400 text-sm"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* CLICK OUTSIDE TO CLOSE MENU */}
+      {showMenu && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setShowMenu(false)}
+        ></div>
+      )}
 
       {/* Search Bar */}
       <div className="px-3 py-2 bg-[#111b21] border-b border-[#202c33]">

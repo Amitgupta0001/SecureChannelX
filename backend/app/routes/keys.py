@@ -10,13 +10,19 @@ keys_bp = Blueprint("keys", __name__, url_prefix="/api/keys")
 def upload_bundle():
     try:
         user_id = get_jwt_identity()
+        claims = get_jwt()
+        device_id = claims.get("deviceId")
+        
+        if not device_id:
+            return error("Device ID missing from token", 400)
+
         data = request.json
         
         required = ["identity_key", "signed_pre_key", "kyber_pre_key"]
         if not all(k in data for k in required):
             return error("Missing key fields", 400)
             
-        KeyBundle.save_bundle(user_id, data)
+        KeyBundle.save_bundle(user_id, device_id, data)
         return success("Key bundle uploaded successfully")
         
     except Exception as e:
@@ -26,11 +32,11 @@ def upload_bundle():
 @jwt_required()
 def get_bundle(user_id):
     try:
-        bundle = KeyBundle.get_bundle(user_id)
-        if not bundle:
-            return error("Key bundle not found", 404)
-            
-        return success(data=bundle)
+        # Return ALL bundles for the user (one per device)
+        bundles = KeyBundle.get_bundles(user_id)
+        
+        # If no keys found, return empty list (not 404, to allow for new users)
+        return success(data=bundles)
         
     except Exception as e:
         return error(f"Failed to fetch bundle: {str(e)}", 500)

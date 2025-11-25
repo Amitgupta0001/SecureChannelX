@@ -158,22 +158,35 @@ def login():
                 "temp_token": temp_token
             })
 
+        # Generate new Device ID
+        import random
+        device_id = random.randint(1, 2147483647) # 31-bit integer for simplicity
+        device_name = data.get("device_name", "Unknown Device")
+
+        # Add device to user record
+        User.add_device(user["_id"], {
+            "device_id": device_id,
+            "name": device_name
+        })
+
         token = create_access_token(
             identity=str(user["_id"]),
             additional_claims={
                 "username": user["username"],
-                "email": user["email"]
+                "email": user["email"],
+                "deviceId": device_id
             }
         )
 
-        AuditLog.log(user["_id"], "LOGIN_SUCCESS", "User logged in")
+        AuditLog.log(user["_id"], "LOGIN_SUCCESS", f"User logged in on device {device_id}")
 
         return success("Login successful", {
             "access_token": token,
             "user": {
                 "id": str(user["_id"]),
                 "username": user["username"],
-                "email": user["email"]
+                "email": user["email"],
+                "deviceId": device_id
             }
         })
 

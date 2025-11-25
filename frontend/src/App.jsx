@@ -1,5 +1,3 @@
-// FILE: src/App.jsx
-
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
@@ -9,6 +7,7 @@ import { EncryptionProvider } from "./context/EncryptionContext";
 import { ChatProvider } from "./context/ChatContext";
 import { GroupProvider } from "./context/GroupContext";
 import { CallProvider } from "./context/CallContext";
+import { NotificationProvider } from "./context/NotificationContext";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -51,87 +50,89 @@ export default function App() {
     <AuthProvider>
       <EncryptionProvider>
         <SocketProvider>
-          <ChatProvider>
-            <GroupProvider>
-              <CallProvider>
-                <Router>
-                  <Routes>
+          <NotificationProvider>
+            <ChatProvider>
+              <GroupProvider>
+                <CallProvider>
+                  <Router>
+                    <Routes>
 
-                    {/* PUBLIC AUTH ROUTES */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/2fa" element={<TwoFactorAuth />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/reset-password/:token" element={<ResetPassword />} />
+                      {/* PUBLIC AUTH ROUTES */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/register" element={<Register />} />
+                      <Route path="/2fa" element={<TwoFactorAuth />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-                    {/* MAIN APP ROUTES */}
-                    <Route
-                      path="/"
-                      element={
-                        <ProtectedRoute>
-                          <ChatRoom />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* MAIN APP ROUTES */}
+                      <Route
+                        path="/"
+                        element={
+                          <ProtectedRoute>
+                            <ChatRoom />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* DIRECT MESSAGE */}
-                    <Route
-                      path="/dm/:userId"
-                      element={
-                        <ProtectedRoute>
-                          <DirectMessagePage />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* DIRECT MESSAGE */}
+                      <Route
+                        path="/dm/:userId"
+                        element={
+                          <ProtectedRoute>
+                            <DirectMessagePage />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* GROUP CHAT */}
-                    <Route
-                      path="/group/:groupId"
-                      element={
-                        <ProtectedRoute>
-                          <GroupPage />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* GROUP CHAT */}
+                      <Route
+                        path="/group/:groupId"
+                        element={
+                          <ProtectedRoute>
+                            <GroupPage />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* CALLS */}
-                    <Route
-                      path="/calls/:chatId"
-                      element={
-                        <ProtectedRoute>
-                          <CallsPage />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* CALLS */}
+                      <Route
+                        path="/calls/:chatId"
+                        element={
+                          <ProtectedRoute>
+                            <CallsPage />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* USER PROFILE */}
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* USER PROFILE */}
+                      <Route
+                        path="/profile"
+                        element={
+                          <ProtectedRoute>
+                            <Profile />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* ACTIVE DEVICES */}
-                    <Route
-                      path="/devices"
-                      element={
-                        <ProtectedRoute>
-                          <Devices />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* ACTIVE DEVICES */}
+                      <Route
+                        path="/devices"
+                        element={
+                          <ProtectedRoute>
+                            <Devices />
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* FALLBACK */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                      {/* FALLBACK */}
+                      <Route path="*" element={<Navigate to="/" replace />} />
 
-                  </Routes>
-                </Router>
-              </CallProvider>
-            </GroupProvider>
-          </ChatProvider>
+                    </Routes>
+                  </Router>
+                </CallProvider>
+              </GroupProvider>
+            </ChatProvider>
+          </NotificationProvider>
         </SocketProvider>
       </EncryptionProvider>
     </AuthProvider>

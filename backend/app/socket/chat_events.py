@@ -56,6 +56,8 @@ def on_connect():
             try:
                 decoded = decode_token(token)
                 user_id = decoded["sub"]
+                device_id = decoded.get("deviceId") # Get device ID from token
+                
                 user = User.find_by_id(user_id)
                 
                 if user:
@@ -63,23 +65,30 @@ def on_connect():
                     # Store user info in socket session
                     socketio.server.environ[sid] = socketio.server.environ.get(sid, {})
                     socketio.server.environ[sid]['user'] = user
+                    socketio.server.environ[sid]['device_id'] = device_id
                     
-                    print(f"[socket] ✅ User {username} (ID: {user_id}) authenticated successfully")
+                    print(f"[socket] ✅ User {username} (ID: {user_id}, Device: {device_id}) authenticated")
                     
-                    # Mark online
+                    # Mark online (maybe track per device later)
                     User.update_user(user_id, {"online": True})
                     
                     # Broadcast online status
                     emit("user_online", username, broadcast=True, include_self=False)
                     
-                    # Join personal rooms (by username and ID)
+                    # Join personal rooms
                     join_room(username)
                     join_room(user_id)
+                    
+                    # Join device-specific room
+                    if device_id:
+                        device_room = f"user:{user_id}:{device_id}"
+                        join_room(device_room)
+                        print(f"[socket] Joined device room: {device_room}")
                     
                     # Load chat history (optional, based on snippet)
                     # For now, we won't dump all history to avoid overload, 
                     # but we can emit a ready event.
-                    emit("ready", {"username": username, "user_id": user_id})
+                    emit("ready", {"username": username, "user_id": user_id, "device_id": device_id})
                 else:
                     print(f"[socket] ❌ User not found for ID: {user_id}")
                     
@@ -164,61 +173,73 @@ def on_leave_chat(data):
 @socketio.on("message:send")
 def on_message_send(payload):
     """
-    payload:
-      {
-        chat_id: str,
-        message: {
-            sender_id: str,
-            content: str,
-            message_type: "text" | "file" | ...,
-            extra: dict?
-        }
-      }
+    payload: { chat_id, encrypted_content, message_type, x3dh_header? }
     """
     try:
-        db = get_db()
-
-        chat_id = payload.get("chat_id")
-        message = payload.get("message")
-
-        if not chat_id or not message:
+        sid = request.sid
+        user = socketio.server.environ.get(sid, {}).get('user')
+        if not user:
+            print("[message:send] Unauthorized")
             return
 
-        sender_id = message.get("sender_id")
-        content = message.get("content", "")
+        user_id = str(user['_id'])
+        username = user['username']
 
+        chat_id = payload.get("chat_id")
+        encrypted_content = payload.get("encrypted_content")
+        message_type = payload.get("message_type", "text")
+        x3dh_header = payload.get("x3dh_header")
+
+        if not chat_id or not encrypted_content:
+            print(f"[message:send] Missing data. Payload keys: {payload.keys()}")
+            return
+
+        db = get_db()
+        
         # Build DB document
         doc = {
             "chat_id": ObjectId(chat_id),
-            "sender_id": sender_id,
-            "message_type": message.get("message_type", "text"),
-            "content": content,
-            "extra": message.get("extra", {}),
+            "sender_id": user_id,
+            "message_type": message_type,
+            "encrypted_content": encrypted_content,
+            "x3dh_header": x3dh_header,
             "reactions": [],
-            "seen_by": [sender_id],
-            "created_at": datetime.utcnow()
+            "seen_by": [user_id],
+            "created_at": datetime.utcnow(),
+            "e2e_encrypted": True,
+            "is_deleted": False
         }
 
         res = db.messages.insert_one(doc)
-        doc["_id"] = str(res.inserted_id)
+        msg_id = str(res.inserted_id)
+        doc["_id"] = msg_id
         doc["chat_id"] = str(chat_id)
+        
+        # JSON-serializable timestamp
+        doc["created_at"] = doc["created_at"].isoformat()
 
         # Update chat preview
-        preview = content if doc["message_type"] == "text" else f"[{doc['message_type']}]"
+        preview = "Encrypted Message"
+        if message_type != "text":
+            preview = f"[{message_type}]"
 
         db.chats.update_one(
             {"_id": ObjectId(chat_id)},
             {
                 "$set": {
                     "last_message_preview": preview,
-                    "last_message_at": datetime.utcnow()
+                    "last_message_at": datetime.utcnow(),
+                    "last_message_encrypted": encrypted_content
                 }
             }
         )
 
         # Emit message to chat room
         room = f"chat:{chat_id}"
+        
+        # Broadcast structure matching frontend expectation
         socketio.emit("message:new", {"message": doc}, room=room)
+        print(f"[message:send] Sent message {msg_id} to {room}")
 
     except Exception:
         print("[message:send] error:", traceback.format_exc())
