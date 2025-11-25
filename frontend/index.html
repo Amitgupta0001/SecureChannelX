@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+
+    <!-- Responsive layout -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- App Title -->
+    <title>SecureChannelX — Encrypted Messaging</title>
+
+    <!-- Description -->
+    <meta name="description"
+        content="SecureChannelX is a modern, end-to-end encrypted chat and file-sharing platform with post-quantum security." />
+
+    <!-- ========================================================= -->
+    <!--                   THEME & APPEARANCE                      -->
+    <!-- ========================================================= -->
+
+    <!-- Theme for Chrome / Edge / Android -->
+    <meta name="theme-color" content="#0D1117" />
+
+    <!-- iOS PWA Status Bar -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Windows Tile -->
+    <meta name="msapplication-TileColor" content="#0D1117" />
+
+    <!-- Prefer dark UI -->
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- ========================================================= -->
+    <!--                SECURE CLIENT-SIDE HEADERS                 -->
+    <!-- ========================================================= -->
+
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    
+    <!-- CSP: Allow scripts from self, styles from self/inline, connect to API/Socket -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://localhost:5050 http://localhost:5050 http://10.230.255.71:5050 ws://10.230.255.71:5050;" />
+
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+
+    <!-- Open Graph for Social Previews -->
+    <meta property="og:title" content="SecureChannelX" />
+    <meta property="og:description" content="Military-grade encrypted messaging & secure file sharing." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/preview.png" />
+
+    <!-- ========================================================= -->
+    <!--                FAVICONS / ICONS / PWA                     -->
+    <!-- ========================================================= -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Prevent flash of unstyled content -->
+    <style>
+        body {
+            background-color: #0D1117;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- React root container -->
+    <div id="root"></div>
+
+    <!-- Vite entrypoint -->
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
