@@ -583,28 +583,6 @@ Ensure these are set in your production environment:
 - [x] Safety number verification
 - [x] Self-destructing messages
 
-### Phase 3: Advanced Features 🚧
-- [ ] Disappearing messages with timers
-- [ ] Voice messages
-- [ ] Message backup & restore
-- [ ] Custom themes
-- [ ] Message scheduling
-- [ ] Advanced search filters
-
-### Phase 4: Platform Expansion 📋
-- [ ] Desktop application (Electron/Tauri)
-- [ ] Mobile apps (React Native)
-- [ ] Browser extensions
-- [ ] Federation support
-- [ ] Self-hosting guide
-
-### Phase 5: Enterprise Features 📋
-- [ ] Admin dashboard
-- [ ] User analytics
-- [ ] Compliance tools
-- [ ] SSO integration
-- [ ] Audit logs
-
 ---
 
 ## 🤝 Contributing
