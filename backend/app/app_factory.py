@@ -43,6 +43,7 @@ def create_app():
                 "origins": [
                     "http://localhost:5173",
                     "http://localhost:3000",
+                    "http://localhost:3001",
                     "http://10.230.255.71:5173",
                     os.getenv("FRONTEND_URL")
                 ]
@@ -73,11 +74,15 @@ def create_app():
     mail.init_app(app_factory)
     
     # Initialize Redis client
-    from app.utils.redis_client import redis_client
+    # Initialize Redis client
+    from app.utils.redis_client import get_redis_client
+    redis_client = get_redis_client()
     
     # Configure rate limiter with Redis or in-memory fallback
+    # Configure rate limiter with Redis or in-memory fallback
     if redis_client.enabled:
-        limiter.init_app(app_factory, storage_uri=os.getenv('REDIS_URL'))
+        app_factory.config['RATELIMIT_STORAGE_URI'] = os.getenv('REDIS_URL')
+        limiter.init_app(app_factory)
         print("✅ Rate limiting using Redis (distributed)")
     else:
         limiter.init_app(app_factory)
@@ -89,6 +94,7 @@ def create_app():
         cors_allowed_origins=[
             "http://localhost:5173",
             "http://localhost:3000",
+            "http://localhost:3001",
             "http://10.230.255.71:5173",
             os.getenv("FRONTEND_URL")
         ]
@@ -146,6 +152,7 @@ def create_app():
     from app.routes.read_receipts import reads_bp
     from app.routes.users import users_bp
     from app.routes.keys import keys_bp
+    from app.routes.webauthn import webauthn_bp  # WebAuthn/FIDO2
     
     app_factory.register_blueprint(auth_bp)
     app_factory.register_blueprint(security_bp)
@@ -160,6 +167,8 @@ def create_app():
     app_factory.register_blueprint(reads_bp)
     app_factory.register_blueprint(users_bp)
     app_factory.register_blueprint(keys_bp)
+    app_factory.register_blueprint(webauthn_bp)  # WebAuthn/FIDO2
+
 
     # ----------------------------------------------------
     # SOCKET.IO EVENTS

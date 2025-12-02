@@ -1,24 +1,21 @@
 // FILE: src/pages/GroupPage.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import { useGroups } from "../context/GroupContext";
 import { useChat } from "../context/ChatContext";
-import useChats from "../hooks/useChats";
-
+import useMessages from "../hooks/useMessages";
 import ChatWindow from "../components/ChatWindow";
 
 export default function GroupPage() {
   const { groupId } = useParams();   // /group/:groupId
 
   const { groups } = useGroups();
-  const { activeChat } = useChats();
-  const { openChat, activeChatId, messages } = useChat();
+  const { openChat, activeChatId } = useChat();
 
+  const group = useMemo(() => groups.find((g) => (g._id || g.id) === groupId), [groups, groupId]);
   const [loading, setLoading] = useState(true);
-
-  const group = groups.find((g) => g._id === groupId);
 
   /* -------------------------------------------------------
       LOAD GROUP → OPEN CHAT
@@ -30,8 +27,18 @@ export default function GroupPage() {
     openChat(groupId);
 
     // slight delay to prevent “loading flicker”
-    setTimeout(() => setLoading(false), 150);
+    const t = setTimeout(() => setLoading(false), 150);
+    return () => clearTimeout(t);
   }, [groupId, openChat]);
+
+  const {
+    messages,
+    sendMessage,
+    reactToMessage,
+    removeReaction,
+    deleteMessage,
+    loadMore,
+  } = useMessages(activeChatId);
 
   /* -------------------------------------------------------
       LOADING STATE
@@ -49,7 +56,15 @@ export default function GroupPage() {
   -------------------------------------------------------- */
   return (
     <div className="h-screen w-full bg-[#0D1117] text-white">
-      <ChatWindow chat={activeChat} />
+      <ChatWindow
+        chat={group}
+        messages={messages}
+        onSendMessage={(text) => sendMessage(text)}
+        sendReaction={(messageId, emoji) => reactToMessage(messageId, emoji)}
+        removeReaction={(messageId, emoji) => removeReaction(messageId, emoji)}
+        onDeleteMessage={(messageId) => deleteMessage(messageId, true)}
+        onLoadMore={() => loadMore()}
+      />
     </div>
   );
 }

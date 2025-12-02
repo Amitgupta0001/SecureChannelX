@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import advancedChatApi from "../api/advancedchatApi";
-import socket from "../sockets/socket";
+import { useSocket } from "../context/SocketContext";
 
 /**
  * PollCard
@@ -26,6 +26,7 @@ import socket from "../sockets/socket";
  */
 
 export default function PollCard({ poll, token, onClose, currentUserId }) {
+  const { socket } = useSocket();
   const [localPoll, setLocalPoll] = useState(poll);
   const [selected, setSelected] = useState(
     poll.allows_multiple ? [] : null
@@ -71,6 +72,8 @@ export default function PollCard({ poll, token, onClose, currentUserId }) {
 
   // socket live updates
   useEffect(() => {
+    if (!socket) return;
+
     const onPollUpdated = (payload) => {
       if (!payload || payload.poll_id !== localPoll.poll_id) return;
       // payload.results might be computed server-side; prefer full poll fetch if available
@@ -98,7 +101,7 @@ export default function PollCard({ poll, token, onClose, currentUserId }) {
       socket.off("poll_updated", onPollUpdated);
       socket.off("new_poll", onNewPoll);
     };
-  }, [localPoll.poll_id]);
+  }, [localPoll.poll_id, socket]);
 
   const toggleOption = (idx) => {
     setError(null);

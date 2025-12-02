@@ -50,10 +50,7 @@ def handle_connect():
         emit("error", {"message": "Unauthorized connection"})
         return False
 
-# ======================================================
-#   SOCKET: SEND ENCRYPTED MESSAGE (ZERO KNOWLEDGE)
-# ======================================================
-# ======================================================
+
 #   REST: GET MESSAGES
 # ======================================================
 @messages_bp.route("/<chat_id>", methods=["GET"])
@@ -69,6 +66,17 @@ def get_messages(chat_id):
         page = int(request.args.get("page", 1))
         per_page = int(request.args.get("per_page", 50))
         skip = (page - 1) * per_page
+
+        # Verify user is a participant
+        user_id = get_jwt_identity()
+        chat = db.chats.find_one({"_id": chat_oid})
+        
+        if not chat:
+            return error("Chat not found", 404)
+            
+        if user_id not in chat.get("participants", []):
+            logging.warning(f"[SECURITY] User {user_id} attempted to access chat {chat_id} without permission")
+            return error("Unauthorized access to chat", 403)
 
         cursor = (
             db.messages.find({"chat_id": chat_oid, "is_deleted": False})

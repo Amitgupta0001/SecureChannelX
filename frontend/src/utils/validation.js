@@ -1,135 +1,196 @@
 // FILE: src/utils/validation.js
 
-/* ---------------------------------------------------------
+import { REGEX, FILE_LIMITS } from "./constants";
+
+/**
+ * Validation utilities for SecureChannelX
+ * @module utils/validation
+ */
+
+/* ========================================
    EMAIL VALIDATION
---------------------------------------------------------- */
-export function validateEmail(email) {
-  if (!email) return { valid: false, error: "Email is required." };
-
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!regex.test(email.trim())) {
-    return { valid: false, error: "Invalid email format." };
-  }
-
-  return { valid: true };
+======================================== */
+export function isValidEmail(email) {
+  if (!email || typeof email !== "string") return false;
+  return REGEX.EMAIL.test(email.trim());
 }
 
-/* ---------------------------------------------------------
+/* ========================================
    USERNAME VALIDATION
---------------------------------------------------------- */
-export function validateUsername(username) {
-  if (!username) return { valid: false, error: "Username is required." };
+======================================== */
+export function isValidUsername(username) {
+  if (!username || typeof username !== "string") return false;
+  return REGEX.USERNAME.test(username.trim());
+}
 
-  if (username.length < 3) {
-    return { valid: false, error: "Username must be at least 3 characters." };
+/* ========================================
+   PASSWORD STRENGTH
+======================================== */
+export function getPasswordStrength(password) {
+  if (!password) return { score: 0, feedback: "Password is required" };
+
+  let score = 0;
+  const feedback = [];
+
+  if (password.length >= 8) score++;
+  else feedback.push("At least 8 characters");
+
+  if (password.length >= 12) score++;
+
+  if (/[a-z]/.test(password)) score++;
+  else feedback.push("Include lowercase letters");
+
+  if (/[A-Z]/.test(password)) score++;
+  else feedback.push("Include uppercase letters");
+
+  if (/[0-9]/.test(password)) score++;
+  else feedback.push("Include numbers");
+
+  if (/[^a-zA-Z0-9]/.test(password)) score++;
+  else feedback.push("Include special characters");
+
+  const strength = ["Weak", "Fair", "Good", "Strong", "Very Strong"][
+    Math.min(score - 1, 4)
+  ];
+
+  return { score, strength, feedback };
+}
+
+export function isStrongPassword(password) {
+  const { score } = getPasswordStrength(password);
+  return score >= 4;
+}
+
+/* ========================================
+   PHONE NUMBER VALIDATION
+======================================== */
+export function isValidPhoneNumber(phone) {
+  if (!phone || typeof phone !== "string") return false;
+  return REGEX.PHONE.test(phone.trim());
+}
+
+/* ========================================
+   URL VALIDATION
+======================================== */
+export function isValidUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  return REGEX.URL.test(url.trim());
+}
+
+/* ========================================
+   FILE VALIDATION
+======================================== */
+export function validateFile(file, options = {}) {
+  const {
+    maxSize = FILE_LIMITS.MAX_SIZE,
+    allowedTypes = [],
+  } = options;
+
+  if (!file || !(file instanceof File)) {
+    return { valid: false, error: "Invalid file" };
   }
 
-  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+  if (file.size > maxSize) {
     return {
       valid: false,
-      error: "Username can only contain letters, numbers, and underscores.",
+      error: `File too large. Max size: ${formatFileSize(maxSize)}`,
+    };
+  }
+
+  if (allowedTypes.length > 0 && !allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: `File type not allowed. Allowed: ${allowedTypes.join(", ")}`,
     };
   }
 
   return { valid: true };
 }
 
-/* ---------------------------------------------------------
-   PASSWORD VALIDATION
---------------------------------------------------------- */
-export function validatePassword(password) {
-  if (!password) return { valid: false, error: "Password is required." };
-
-  if (password.length < 8) {
-    return { valid: false, error: "Password must be at least 8 characters." };
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    return { valid: false, error: "Include at least 1 uppercase letter." };
-  }
-
-  if (!/[a-z]/.test(password)) {
-    return { valid: false, error: "Include at least 1 lowercase letter." };
-  }
-
-  if (!/[0-9]/.test(password)) {
-    return { valid: false, error: "Include at least 1 number." };
-  }
-
-  return { valid: true };
+export function validateImage(file) {
+  return validateFile(file, {
+    maxSize: FILE_LIMITS.MAX_SIZE_IMAGE,
+    allowedTypes: FILE_LIMITS.ALLOWED_IMAGE_TYPES,
+  });
 }
 
-/* ---------------------------------------------------------
-   PASSWORD MATCH VALIDATION
---------------------------------------------------------- */
-export function validatePasswordMatch(password, confirmPassword) {
+export function validateVideo(file) {
+  return validateFile(file, {
+    maxSize: FILE_LIMITS.MAX_SIZE_VIDEO,
+    allowedTypes: FILE_LIMITS.ALLOWED_VIDEO_TYPES,
+  });
+}
+
+/* ========================================
+   INPUT SANITIZATION
+======================================== */
+export function sanitizeInput(input) {
+  if (typeof input !== "string") return "";
+  return input
+    .trim()
+    .replace(/[<>]/g, "")
+    .substring(0, 10000);
+}
+
+export function sanitizeHtml(html) {
+  const temp = document.createElement("div");
+  temp.textContent = html;
+  return temp.innerHTML;
+}
+
+/* ========================================
+   FORM VALIDATION
+======================================== */
+export function validateLoginForm(username, password) {
+  const errors = {};
+
+  if (!username || !username.trim()) {
+    errors.username = "Username is required";
+  }
+
+  if (!password || password.length < 6) {
+    errors.password = "Password must be at least 6 characters";
+  }
+
+  return {
+    valid: Object.keys(errors).length === 0,
+    errors,
+  };
+}
+
+export function validateRegisterForm(username, email, password, confirmPassword) {
+  const errors = {};
+
+  if (!isValidUsername(username)) {
+    errors.username = "Username must be 3-20 characters (letters, numbers, underscore)";
+  }
+
+  if (!isValidEmail(email)) {
+    errors.email = "Invalid email address";
+  }
+
+  const passwordCheck = getPasswordStrength(password);
+  if (passwordCheck.score < 3) {
+    errors.password = passwordCheck.feedback.join(", ");
+  }
+
   if (password !== confirmPassword) {
-    return { valid: false, error: "Passwords do not match." };
+    errors.confirmPassword = "Passwords do not match";
   }
-  return { valid: true };
+
+  return {
+    valid: Object.keys(errors).length === 0,
+    errors,
+  };
 }
 
-/* ---------------------------------------------------------
-   BIO / PROFILE DESCRIPTION VALIDATION
---------------------------------------------------------- */
-export function validateBio(bio) {
-  if (!bio) return { valid: true };
-
-  if (bio.length > 200) {
-    return { valid: false, error: "Bio cannot exceed 200 characters." };
-  }
-
-  return { valid: true };
-}
-
-/* ---------------------------------------------------------
-   MESSAGE VALIDATION
---------------------------------------------------------- */
-export function validateMessage(text) {
-  if (!text || !text.trim()) {
-    return { valid: false, error: "Message cannot be empty." };
-  }
-
-  if (text.length > 5000) {
-    return { valid: false, error: "Message is too long (max 5000 chars)." };
-  }
-
-  return { valid: true };
-}
-
-/* ---------------------------------------------------------
-   FILE UPLOAD VALIDATION
---------------------------------------------------------- */
-export function validateFile(file) {
-  if (!file) return { valid: false, error: "No file selected." };
-
-  const maxSize = 25 * 1024 * 1024; // 25MB max
-
-  if (file.size > maxSize) {
-    return { valid: false, error: "File exceeds 25MB limit." };
-  }
-
-  return { valid: true };
-}
-
-/* ---------------------------------------------------------
-   GROUP NAME VALIDATION
---------------------------------------------------------- */
-export function validateGroupName(name) {
-  if (!name) return { valid: false, error: "Group name required." };
-
-  if (name.length < 3) {
-    return { valid: false, error: "Group name must be at least 3 characters." };
-  }
-
-  return { valid: true };
-}
-
-/* ---------------------------------------------------------
-   SEARCH QUERY SANITIZATION
---------------------------------------------------------- */
-export function sanitizeQuery(q) {
-  if (!q) return "";
-  return q.trim().replace(/[<>]/g, ""); // prevent XSS
+/* ========================================
+   HELPER
+======================================== */
+function formatFileSize(bytes) {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }

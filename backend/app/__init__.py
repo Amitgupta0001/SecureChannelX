@@ -1,3 +1,9 @@
+"""
+SecureChannelX - Application Package
+-------------------------------------
+Main application package initialization
+"""
+
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_bcrypt import Bcrypt
@@ -8,13 +14,16 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 # Talisman removed - package corrupted
 
-# Global extensions
 socketio = SocketIO(
-    cors_allowed_origins="*",
     async_mode="threading",
-    ping_timeout=30,
-    ping_interval=25
+    cors_allowed_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+    ],
 )
+
+# Global extensions
 bcrypt = Bcrypt()
 jwt = JWTManager()
 cors = CORS()
@@ -26,4 +35,9 @@ def create_app():
     from app.app_factory import create_app as factory
     return factory()
 
-__all__ = ["socketio", "bcrypt", "jwt", "cors", "mail", "limiter", "create_app"]
+__version__ = "2.0.0"
+
+__all__ = [
+    "socketio",
+    "__version__"
+]

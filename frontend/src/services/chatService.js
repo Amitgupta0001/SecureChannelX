@@ -3,9 +3,11 @@
 import axios from "axios";
 import { API_BASE as API } from "../utils/constants";
 
+const http = axios.create({ baseURL: API, timeout: 10000 });
+
 /** Auth header */
 const auth = () => ({
-  headers: { Authorization: "Bearer " + localStorage.getItem("access_token") }
+  headers: { Authorization: "Bearer " + localStorage.getItem("access_token") },
 });
 
 /* ----------------------------------------------------
@@ -13,8 +15,9 @@ const auth = () => ({
 ---------------------------------------------------- */
 export async function fetchChats() {
   try {
-    const res = await axios.get(`${API}/chats/list`, auth());
-    return res.data.data;
+    const res = await http.get(`/chats/list`, auth());
+    // normalize to always return data property
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("fetchChats error:", err.response?.data || err);
     return { error: "Failed to load chat list" };
@@ -26,8 +29,8 @@ export async function fetchChats() {
 ---------------------------------------------------- */
 export async function createChat(data) {
   try {
-    const res = await axios.post(`${API}/chats/create`, data, auth());
-    return res.data.data;
+    const res = await http.post(`/chats/create`, data, auth());
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("createChat error:", err.response?.data || err);
     return { error: "Failed to create chat" };
@@ -39,8 +42,8 @@ export async function createChat(data) {
 ---------------------------------------------------- */
 export async function openChat(chatId) {
   try {
-    const res = await axios.get(`${API}/chats/${chatId}`, auth());
-    return res.data.data;
+    const res = await http.get(`/chats/${chatId}`, auth());
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("openChat error:", err.response?.data || err);
     return { error: "Failed to open chat" };
@@ -52,11 +55,11 @@ export async function openChat(chatId) {
 ---------------------------------------------------- */
 export async function searchChats(query) {
   try {
-    const res = await axios.get(
-      `${API}/chats/search?q=${encodeURIComponent(query)}`,
-      auth()
-    );
-    return res.data.data;
+    const res = await http.get(`/chats/search`, {
+      ...auth(),
+      params: { q: query },
+    });
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("searchChats error:", err.response?.data || err);
     return { error: "Search failed" };
@@ -68,12 +71,8 @@ export async function searchChats(query) {
 ---------------------------------------------------- */
 export async function pinChat(chatId, pin = true) {
   try {
-    const res = await axios.post(
-      `${API}/chats/${chatId}/pin`,
-      { pin },
-      auth()
-    );
-    return res.data.data;
+    const res = await http.post(`/chats/${chatId}/pin`, { pin }, auth());
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("pinChat error:", err.response?.data || err);
     return { error: "Failed to pin chat" };
@@ -85,12 +84,8 @@ export async function pinChat(chatId, pin = true) {
 ---------------------------------------------------- */
 export async function renameChat(chatId, title) {
   try {
-    const res = await axios.post(
-      `${API}/chats/${chatId}/rename`,
-      { title },
-      auth()
-    );
-    return res.data.data;
+    const res = await http.post(`/chats/${chatId}/rename`, { title }, auth());
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("renameChat error:", err.response?.data || err);
     return { error: "Failed to rename chat" };
@@ -102,10 +97,22 @@ export async function renameChat(chatId, title) {
 ---------------------------------------------------- */
 export async function deleteChat(chatId) {
   try {
-    const res = await axios.delete(`${API}/chats/${chatId}`, auth());
-    return res.data.data;
+    const res = await http.delete(`/chats/${chatId}`, auth());
+    return res.data?.data ?? res.data;
   } catch (err) {
     console.error("deleteChat error:", err.response?.data || err);
     return { error: "Failed to delete chat" };
   }
 }
+
+const chatService = {
+  fetchChats,
+  createChat,
+  openChat,
+  searchChats,
+  pinChat,
+  renameChat,
+  deleteChat,
+};
+
+export default chatService;

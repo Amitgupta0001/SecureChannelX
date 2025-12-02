@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-11-29T09:29:53.822039",
+  "pip_audit": {
+    "status": "error",
+    "error": "Found 22 known vulnerabilities in 9 packages\n",
+    "count": 0
+  },
+  "safety": {
+    "status": "error",
+    "error": "Expecting value: line 3 column 1 (char 2)",
+    "count": 0
+  },
+  "bandit": {
+    "status": "error",
+    "error": "Expecting value: line 1 column 1 (char 0)",
+    "count": 0
+  },
+  "summary": {
+    "total_vulnerabilities": 0,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  }
+}

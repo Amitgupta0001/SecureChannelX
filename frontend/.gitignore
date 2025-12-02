@@ -1,0 +1,237 @@
+# ========================================
+# Dependencies
+# ========================================
+node_modules/
+.pnp
+.pnp.js
+
+# ========================================
+# Build Output
+# ========================================
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+.vite/
+
+# Build statistics
+stats.html
+bundle-analyzer-report.html
+
+# ========================================
+# Logs
+# ========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.*.local
+
+# ========================================
+# Testing
+# ========================================
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+__tests__/__snapshots__/
+playwright-report/
+test-results/
+
+# ========================================
+# Editor & IDE
+# ========================================
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ IDEA / WebStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# ========================================
+# OS Files
+# ========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+
+# ========================================
+# Temporary Files
+# ========================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.pid
+*.seed
+*.pid.lock
+*.tgz
+*.gz
+
+# ========================================
+# Runtime
+# ========================================
+pids/
+lib-cov/
+
+# ========================================
+# Caches
+# ========================================
+.npm/
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+
+# ========================================
+# Yarn
+# ========================================
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# ========================================
+# Deployment Platforms
+# ========================================
+.vercel/
+.netlify/
+.serverless/
+
+# ========================================
+# Other Tools
+# ========================================
+.fusebox/
+.dynamodb/
+.tern-port
+.vscode-test/
+storybook-static/
+
+# ========================================
+# Service Worker
+# ========================================
+sw.js
+workbox-*.js
+
+# ========================================
+# TypeScript
+# ========================================
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+.vite-inspect/
+
+# ========================================
+# Monitoring & Analytics
+# ========================================
+.sentryclirc
+.monitoring/
+analytics/
+
+# ========================================
+# Security & Secrets
+# ========================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+.secrets/
+.credentials/
+keys/
+*.private
+*.public
+
+# ========================================
+# Database
+# ========================================
+*.sqlite
+*.sqlite3
+*.db
+
+# ========================================
+# Error Reports
+# ========================================
+error-report-*.json
+errors-*.csv
+
+# ========================================
+# User Data
+# ========================================
+uploads/
+temp/
+downloads/
+
+# ========================================
+# Generated Documentation
+# ========================================
+docs/api/
+docs/build/
+
+# ========================================
+# Local Development
+# ========================================
+*.local
+.local/

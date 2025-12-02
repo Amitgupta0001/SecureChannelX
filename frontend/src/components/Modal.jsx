@@ -1,9 +1,25 @@
-// FILE: src/components/Modal.jsx
+/**
+ * ✅ ENHANCED: SecureChannelX - Generic Modal Component
+ * -----------------------------------------------------
+ * Reusable modal wrapper with animations
+ * 
+ * Changes:
+ *   - Added: Optional title prop
+ *   - Added: Optional footer prop
+ *   - Enhanced: Close button styling
+ */
+
 import React, { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
 
-export default function Modal({ children, onClose }) {
-  
+export default function Modal({ 
+  children, 
+  onClose, 
+  title = null,
+  footer = null,
+  maxWidth = "lg" 
+}) {
   // Close on ESC key
   useEffect(() => {
     const handler = (e) => {
@@ -13,10 +29,18 @@ export default function Modal({ children, onClose }) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const maxWidthClass = {
+    sm: "max-w-sm",
+    md: "max-w-md",
+    lg: "max-w-lg",
+    xl: "max-w-xl",
+    "2xl": "max-w-2xl",
+  }[maxWidth] || "max-w-lg";
+
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         onClick={onClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -25,22 +49,46 @@ export default function Modal({ children, onClose }) {
         {/* Modal Box */}
         <motion.div
           onClick={(e) => e.stopPropagation()}
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
           transition={{ duration: 0.15 }}
-          className="relative w-[90%] max-w-lg bg-[#111827] border border-[#1f2937] rounded-2xl shadow-xl p-6 text-gray-200"
+          className={`relative w-full ${maxWidthClass} bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden`}
         >
-          {/* Close Button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white transition"
-          >
-            ✖
-          </button>
+          {/* Header */}
+          {title && (
+            <div className="flex items-center justify-between p-6 border-b border-gray-800">
+              <h3 className="text-xl font-bold text-white">{title}</h3>
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Close Button (if no title) */}
+          {!title && (
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
 
           {/* Content */}
-          <div className="mt-2">{children}</div>
+          <div className={title ? "p-6" : "p-6 pt-12"}>
+            {children}
+          </div>
+
+          {/* Footer */}
+          {footer && (
+            <div className="p-6 border-t border-gray-800 bg-gray-950/50">
+              {footer}
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>

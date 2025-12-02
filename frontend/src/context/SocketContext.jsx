@@ -1,4 +1,5 @@
 // FILE: src/context/SocketContext.jsx
+// FINAL FIXED VERSION — SecureChannelX
 
 import React, {
   createContext,
@@ -6,9 +7,9 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
-
-import { io } from "socket.io-client";
+import io from "socket.io-client";
 import { useAuth } from "./AuthContext";
 
 const SocketContext = createContext(null);
@@ -20,104 +21,252 @@ export const useSocket = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const { user, token } = useAuth();
+  const { user, token, isAuthenticated } = useAuth();
 
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [sessionKey, setSessionKey] = useState(null);
+  const [connectionState, setConnectionState] = useState("disconnected");
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  /* ===========================================================
-     SAFE EMIT (Prevents crashes, ensures backend compatibility)
+  const socketRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
+  const eventQueueRef = useRef([]);
+
+  /* ============================================================
+     SAFE EMIT + QUEUE
   ============================================================ */
   const safeEmit = useCallback(
     (event, payload = {}) => {
-      if (!socket || !isConnected) {
-        console.warn("Emit skipped — socket not ready:", event);
-        return;
+      if (!socketRef.current || !socketRef.current.connected) {
+        console.warn(`📮 Queueing offline event: ${event}`);
+        eventQueueRef.current.push({ event, payload });
+        return false;
       }
 
       try {
-        socket.emit(event, payload);
+        socketRef.current.emit(event, payload);
+        return true;
       } catch (err) {
-        console.error("safeEmit error:", event, payload, err);
+        console.error(`❌ Emit error (${event}):`, err);
+        return false;
       }
     },
-    [socket, isConnected]
+    []
   );
 
-  /* ===========================================================
-     CONNECT TO BACKEND SOCKET
+  const processEventQueue = useCallback(() => {
+    if (!socketRef.current?.connected) return;
+    if (eventQueueRef.current.length === 0) return;
+
+    console.log(`📦 Processing ${eventQueueRef.current.length} queued events`);
+
+    const queue = [...eventQueueRef.current];
+    eventQueueRef.current = [];
+
+    queue.forEach(({ event, payload }) => {
+      safeEmit(event, payload);
+    });
+  }, [safeEmit]);
+
+  /* ============================================================
+     HEARTBEAT
   ============================================================ */
-  useEffect(() => {
-    if (!user || !token) {
-      if (socket) socket.disconnect();
+  const startHeartbeat = useCallback(() => {
+    clearInterval(heartbeatIntervalRef.current);
+
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("ping", { timestamp: Date.now() });
+      }
+    }, 30000);
+  }, []);
+
+  const stopHeartbeat = useCallback(() => {
+    clearInterval(heartbeatIntervalRef.current);
+  }, []);
+
+  /* ============================================================
+     CREATE SOCKET — FIXED (removed duplicate assignments)
+  ============================================================ */
+  const createSocket = useCallback(() => {
+    if (!isAuthenticated || !token) {
+      console.log("⚠️ Not authenticated — socket not created");
+      return null;
+    }
+
+    try {
+      const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5050";
+      const socket = io(SOCKET_URL, {
+        withCredentials: true,
+        auth: { token: localStorage.getItem("token") },
+        transports: ["polling","websocket"],
+      });
+
+      /* ------------------ CONNECTION EVENTS ------------------ */
+
+      socket.on("connect", () => {
+        console.log("✅ Socket connected:", socket.id);
+        socketRef.current = socket;
+        setSocket(socket);
+        setIsConnected(true);
+        setConnectionState("connected");
+        setReconnectAttempt(0);
+        startHeartbeat();
+        processEventQueue();
+      });
+
+      socket.on("disconnect", (reason) => {
+        console.log("🔌 Disconnected:", reason);
+        setIsConnected(false);
+        setConnectionState("disconnected");
+        stopHeartbeat();
+      });
+
+      socket.on("connect_error", (err) => {
+        console.error("❌ Socket connect error:", err?.message);
+        setConnectionState("reconnecting");
+      });
+
+      socket.on("reconnect_attempt", (n) => {
+        console.log("🔄 Reconnect attempt:", n);
+        setReconnectAttempt(n);
+        setConnectionState("reconnecting");
+      });
+
+      socket.on("reconnect", () => {
+        console.log("🟢 Reconnected");
+        setConnectionState("connected");
+        processEventQueue();
+      });
+
+      socket.on("pong", (data) => {
+        const latency = Date.now() - data.timestamp;
+        console.log(`💓 Heartbeat latency: ${latency}ms`);
+      });
+
+      return socket;
+    } catch (error) {
+      console.error("❌ Failed to create socket:", error);
+      return null;
+    }
+  }, [token, isAuthenticated, startHeartbeat, processEventQueue, stopHeartbeat]);
+
+  /* ============================================================
+     INITIALIZE SOCKET — FIXED with better duplicate prevention
+  ============================================================ */
+  const initializeSocket = useCallback(() => {
+    // prevents double initialization with better checks
+    if (socketRef.current && (socketRef.current.connected || socketRef.current.connecting)) {
+      console.log("⚠️ Socket already initialized and active");
+      return;
+    }
+    
+    // Clean up any existing socket before creating new one
+    if (socketRef.current) {
+      console.log("🧹 Cleaning up existing socket before reinitialization");
+      socketRef.current.disconnect();
+      socketRef.current = null;
       setSocket(null);
       setIsConnected(false);
+    }
+    
+    createSocket();
+  }, [createSocket]);
+
+  /* ============================================================
+     NETWORK STATUS
+  ============================================================ */
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOnline(true);
+      if (!socketRef.current) initializeSocket();
+    };
+
+    const goOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [initializeSocket]);
+
+  /* ============================================================
+     AUTH CHANGE → INITIALIZE SOCKET with proper cleanup
+  ============================================================ */
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      // Clean up socket if user logs out
+      if (socketRef.current) {
+        console.log("🚪 User logged out - cleaning up socket");
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        setSocket(null);
+        setIsConnected(false);
+        stopHeartbeat();
+      }
       return;
     }
 
-    console.log("🔌 Connecting socket with token:", token?.substring(0, 20) + "...");
-    console.log("👤 User:", user);
+    const timer = setTimeout(() => {
+      initializeSocket();
+    }, 350);
 
-    const newSocket = io(import.meta.env.VITE_WS_URL || "http://localhost:5050", {
-      auth: { token },
-      query: { token }, // FIX: Also pass as query param for backend compatibility
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: 15,
-      reconnectionDelay: 800,
-      timeout: 20000,
-    });
-
-    /* --- CONNECTION EVENTS --- */
-    newSocket.on("connect", () => {
-      console.log("✅ Socket connected! SID:", newSocket.id);
-      setIsConnected(true);
-    });
-
-    newSocket.on("disconnect", () => {
-      console.log("❌ Socket Disconnected");
-      setIsConnected(false);
-    });
-
-    /* --- SECURITY EVENTS --- */
-    newSocket.on("error", (err) => {
-      console.error("⚠️ Socket Error:", err);
-    });
-
-    newSocket.on("unauthorized", () => {
-      console.error("❌ Invalid token - forcing logout");
-    });
-
-    newSocket.on("session_key", ({ key }) => {
-      console.log("🔑 Session key received");
-      setSessionKey(key);
-    });
-
-    newSocket.on("session_key_rotated", ({ new_key }) => {
-      console.log("♻️ Session key rotated");
-      setSessionKey(new_key);
-    });
-
-    newSocket.on("ready", (data) => {
-      console.log("🚀 Socket ready event received:", data);
-    });
-
-    setSocket(newSocket);
-
-    /* --- CLEANUP --- */
     return () => {
-      if (newSocket && newSocket.connected) {
-        newSocket.disconnect(); // Disconnect only if connected
-      }
-      setSocket(null);
-      setIsConnected(false);
+      clearTimeout(timer);
     };
-  }, [user, token]);
+  }, [isAuthenticated, user, initializeSocket, stopHeartbeat]);
 
+  /* ============================================================
+     CLEANUP ON UNMOUNT
+  ============================================================ */
+  useEffect(() => {
+    return () => {
+      // Cleanup on component unmount
+      if (socketRef.current) {
+        console.log("🧹 SocketProvider unmounting - cleanup");
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      stopHeartbeat();
+    };
+  }, [stopHeartbeat]);
+
+  /* ============================================================
+     MANUAL CONTROLS
+  ============================================================ */
+  const reconnect = () => {
+    if (socketRef.current) socketRef.current.connect();
+    else initializeSocket();
+  };
+
+  const disconnect = () => {
+    socketRef.current?.disconnect();
+    setIsConnected(false);
+  };
+
+  /* ============================================================
+     PROVIDER
+  ============================================================ */
   return (
-    <SocketContext.Provider value={{ socket, isConnected, sessionKey, safeEmit }}>
+    <SocketContext.Provider
+      value={{
+        socket,
+        isConnected,
+        connectionState,
+        reconnectAttempt,
+        isOnline,
+        safeEmit,
+        reconnect,
+        disconnect,
+      }}
+    >
       {children}
     </SocketContext.Provider>
   );
 };
+
+export default SocketContext;

@@ -3,10 +3,10 @@
 import axios from "axios";
 
 const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+const http = axios.create({ baseURL: API, timeout: 10000 });
 
-// Correct auth header
 const auth = () => ({
-  headers: { Authorization: "Bearer " + localStorage.getItem("access_token") }
+  headers: { Authorization: "Bearer " + localStorage.getItem("access_token") },
 });
 
 /* ----------------------------------------------------
@@ -14,8 +14,8 @@ const auth = () => ({
 ---------------------------------------------------- */
 export async function registerPushToken(pushToken) {
   try {
-    const res = await axios.post(
-      `${API}/notifications/register-token`,
+    const res = await http.post(
+      `/notifications/register-token`,
       { token: pushToken },
       auth()
     );
@@ -31,11 +31,7 @@ export async function registerPushToken(pushToken) {
 ---------------------------------------------------- */
 export async function sendTestNotification(data) {
   try {
-    const res = await axios.post(
-      `${API}/notifications/send-test`,
-      data,
-      auth()
-    );
+    const res = await http.post(`/notifications/send-test`, data, auth());
     return res.data;
   } catch (err) {
     console.error("sendTestNotification error:", err.response?.data || err);
@@ -48,8 +44,8 @@ export async function sendTestNotification(data) {
 ---------------------------------------------------- */
 export async function sendUserNotification(userId, payload) {
   try {
-    const res = await axios.post(
-      `${API}/notifications/send`,
+    const res = await http.post(
+      `/notifications/send`,
       { user_id: userId, ...payload },
       auth()
     );
@@ -59,3 +55,11 @@ export async function sendUserNotification(userId, payload) {
     return { error: "Failed to send notification" };
   }
 }
+
+const notificationService = {
+  registerPushToken,
+  sendTestNotification,
+  sendUserNotification,
+};
+
+export default notificationService;

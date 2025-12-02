@@ -9,7 +9,7 @@ export default function TwoFactorAuth() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { verify2FA, requires2FA, tempToken, user } = useAuth();
+  const { verify2FA, requires2FA, tempToken, user, resend2FA } = useAuth();
   const navigate = useNavigate();
 
   /* -------------------------------------------------------
@@ -41,13 +41,21 @@ export default function TwoFactorAuth() {
     }
 
     setLoading(true);
-    const res = await verify2FA(code);
-    setLoading(false);
+    try {
+      const res = await verify2FA(code);
+      if (res?.success) navigate("/");
+      else setError(res?.error || "Invalid verification code.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    if (res?.success) {
-      navigate("/");
-    } else {
-      setError(res?.error || "Invalid verification code.");
+  const handleResend = async () => {
+    setError("");
+    try {
+      await resend2FA?.();
+    } catch {
+      setError("Failed to resend code.");
     }
   };
 
@@ -71,7 +79,7 @@ export default function TwoFactorAuth() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-sm mb-1" htmlFor="code">
               Verification Code
@@ -86,23 +94,25 @@ export default function TwoFactorAuth() {
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               placeholder="••••••"
               required
+              autoComplete="one-time-code"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition active:scale-95"
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition active:scale-95 disabled:opacity-60"
           >
             {loading ? "Verifying..." : "Verify Code"}
           </button>
         </form>
 
-        {/* Features */}
-        <div className="mt-8 space-y-1 text-sm text-gray-400">
-          <div className="flex items-center gap-2">🔐 Strong Account Security</div>
-          <div className="flex items-center gap-2">📱 Works with any Authenticator App</div>
-          <div className="flex items-center gap-2">🛡️ Zero-Knowledge 2FA Flow</div>
+        {/* Resend Code */}
+        <div className="mt-4 text-xs text-gray-400 flex justify-between">
+          <button className="text-blue-400 hover:underline" onClick={handleResend}>
+            Resend code
+          </button>
+          <span>Time-based OTP (TOTP)</span>
         </div>
 
       </div>

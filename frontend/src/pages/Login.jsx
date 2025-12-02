@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
+import { ShieldCheck, User, Lock, Loader2, AlertCircle } from "lucide-react";
+import EncryptedDB from "../lib/encryptedDB";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -10,47 +12,36 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login, requires2FA, user } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
 
-  /* -------------------------------------------------------
-      REDIRECT IF USER ALREADY LOGGED IN
-  -------------------------------------------------------- */
   useEffect(() => {
-    console.log("🔵 Login.jsx useEffect - user:", user);
-    if (user) {
-      console.log("🔵 User is logged in, navigating to /");
-      navigate("/");
-    }
+    if (user) navigate("/");
   }, [user, navigate]);
 
-  /* -------------------------------------------------------
-      FORM SUBMIT
-  -------------------------------------------------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("🔵 Login form submitted", { username, password: "***" });
     setError("");
     setLoading(true);
 
     try {
-      console.log("🔵 Calling login function...");
-      const res = await login(username, password);
-      console.log("🔵 Login response:", res);
-
-      if (res?.requires2FA) {
-        console.log("🔵 2FA required, redirecting to /2fa");
-        return navigate("/2fa");
-      }
+      const res = await login(username.trim(), password);
+      
+      // Initialize encrypted IndexedDB after successful login
       if (res?.success) {
-        console.log("🔵 Login successful, redirecting to /");
+        try {
+          await EncryptedDB.initializeMasterKey(password);
+          console.log('[SECURITY] Encrypted IndexedDB initialized');
+        } catch (dbError) {
+          console.warn('[SECURITY] Failed to initialize encrypted DB:', dbError);
+          // Don't block login if DB initialization fails
+        }
         return navigate("/");
       }
-
-      console.log("🔴 Login failed:", res.error);
-      setError(res.error || "Invalid username or password.");
-    } catch (err) {
-      console.error("🔴 Login error:", err);
+      
+      if (res?.requires2FA) return navigate("/2fa");
+      setError(res?.error || "Invalid username or password.");
+    } catch {
       setError("An unexpected error occurred.");
     } finally {
       setLoading(false);
@@ -58,59 +49,36 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center gradient-bg px-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#1f2937] to-[#0f172a] p-4">
 
-      {/* Animated Background Orbs */}
-      <div className="absolute top-20 left-20 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse-slow"></div>
-      <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+      <div className="w-full max-w-md bg-white/15 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-3xl p-8">
 
-      {/* Login Card */}
-      <div className="glass-strong p-6 rounded-2xl w-full max-w-md shadow-2xl shadow-blue-500/10 animate-slide-up relative z-10">
-
-        {/* Header */}
-        <div className="mb-6 text-center">
-          <div className="inline-block mb-3">
-            <div className="w-12 h-12 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-glow-md">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-1">
-            SecureChannelX
-          </h1>
-          <p className="text-gray-400 text-xs">Military-Grade Encrypted Messaging</p>
+        {/* App Icon / Title */}
+        <div className="text-center mb-6">
+          <ShieldCheck className="h-14 w-14 text-indigo-400 drop-shadow-lg mx-auto" />
+          <h1 className="text-3xl font-bold text-gray-100 mt-2">SecureChannelX</h1>
+          <p className="text-sm text-gray-300">Encrypted Messaging</p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 backdrop-blur-sm animate-fade-in">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <p className="text-xs text-red-300">{error}</p>
-            </div>
+          <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/30">
+            <AlertCircle className="h-5 w-5 text-red-300" />
+            <span className="text-red-300 text-sm">{error}</span>
           </div>
         )}
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
 
-          {/* Username Input */}
-          <div className="group">
-            <label className="block text-xs font-medium mb-1.5 text-gray-300">Username</label>
+          {/* Username */}
+          <div className="space-y-1">
+            <label className="text-sm text-gray-200">Username</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
+              <User className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
               <input
                 type="text"
-                className="w-full pl-9 pr-3 py-2.5 bg-dark-bg border border-dark-border rounded-lg 
-                         focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 
-                         outline-none transition-all duration-300 text-sm text-white placeholder-gray-500"
+                className="w-full pl-12 pr-3 py-2.5 bg-white/20 backdrop-blur-xl border border-white/30 rounded-xl outline-none text-sm text-white placeholder-gray-300 focus:ring-2 focus:ring-indigo-400/60"
                 placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -120,20 +88,14 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Password Input */}
-          <div className="group">
-            <label className="block text-xs font-medium mb-1.5 text-gray-300">Password</label>
+          {/* Password */}
+          <div className="space-y-1">
+            <label className="text-sm text-gray-200">Password</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
+              <Lock className="h-5 w-5 absolute left-3 top-3 text-gray-400" />
               <input
                 type="password"
-                className="w-full pl-9 pr-3 py-2.5 bg-dark-bg border border-dark-border rounded-lg 
-                         focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 
-                         outline-none transition-all duration-300 text-sm text-white placeholder-gray-500"
+                className="w-full pl-12 pr-3 py-2.5 bg-white/20 backdrop-blur-xl border border-white/30 rounded-xl outline-none text-sm text-white placeholder-gray-300 focus:ring-2 focus:ring-indigo-400/60"
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -147,55 +109,26 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 
-                     rounded-lg font-semibold text-sm text-white shadow-lg shadow-blue-500/30
-                     transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]
-                     btn-ripple relative overflow-hidden"
+            className="w-full py-3 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-xl text-white font-semibold text-sm shadow-xl hover:shadow-2xl hover:scale-[1.01] transition disabled:opacity-50"
           >
-            <span className="relative z-10">{loading ? "Logging in..." : "Log In"}</span>
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Logging in...
+              </span>
+            ) : (
+              "Log In"
+            )}
           </button>
-
         </form>
 
         {/* Links */}
-        <div className="mt-5 flex justify-between items-center text-xs">
-          <Link
-            to="/forgot-password"
-            className="text-blue-400 hover:text-blue-300 transition-colors hover-lift"
-          >
+        <div className="mt-5 flex justify-between items-center text-xs text-gray-300">
+          <Link to="/forgot-password" className="hover:text-indigo-300">
             Forgot Password?
           </Link>
-
-          <Link
-            to="/register"
-            className="text-blue-400 hover:text-blue-300 transition-colors hover-lift font-medium"
-          >
+          <Link to="/register" className="font-medium text-indigo-300 hover:underline">
             Create Account →
           </Link>
-        </div>
-
-        {/* Security Features */}
-        <div className="mt-6 pt-5 border-t border-gray-700/50">
-          <div className="grid grid-cols-1 gap-2">
-            <div className="flex items-center gap-2.5 text-xs text-gray-400 hover:text-gray-300 transition-colors group">
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
-                <span className="text-base">🔒</span>
-              </div>
-              <span>End-to-End Encryption</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-gray-400 hover:text-gray-300 transition-colors group">
-              <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
-                <span className="text-base">⚡</span>
-              </div>
-              <span>Real-time Messaging</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-xs text-gray-400 hover:text-gray-300 transition-colors group">
-              <div className="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
-                <span className="text-base">🛡️</span>
-              </div>
-              <span>Military-Grade Security</span>
-            </div>
-          </div>
         </div>
 
       </div>

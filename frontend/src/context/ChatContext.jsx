@@ -1,84 +1,141 @@
 // FILE: src/context/ChatContext.jsx
 
+/**
+ * ✅ ENHANCED: SecureChannelX - Chat Context
+ * ------------------------------------------
+ * Manages chat rooms, messages, and real-time events
+ * 
+ * Changes:
+ *   - Fixed: Chat loading with proper error handling
+ *   - Fixed: Room joining with connection check
+ *   - Fixed: Message deduplication
+ *   - Added: Pagination support
+ *   - Added: Optimistic updates
+ *   - Added: Read receipts tracking
+ *   - Enhanced: Typing indicators
+ *   - Enhanced: Performance optimization
+ */
+
 import React, {
   createContext,
   useContext,
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
-
 import { useSocket } from "./SocketContext";
 import chatApi from "../api/chatApi";
 import messageApi from "../api/messageApi";
-
-import registerChatHandlers, { ChatEmit } from "../sockets/chatHandlers";
-import registerTypingHandlers, { TypingEmit } from "../sockets/typingHandlers";
-
 import { useAuth } from "./AuthContext";
 
 const ChatContext = createContext();
 export const useChat = () => useContext(ChatContext);
 
 export const ChatProvider = ({ children }) => {
-  /* -------------------------------------------------------
-       STATE
-  -------------------------------------------------------- */
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingChats, setLoadingChats] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
 
-  const { socket, safeEmit } = useSocket();
-  const { user } = useAuth();
+  const { socket, isConnected, safeEmit } = useSocket();
+  const { user, token, isAuthenticated } = useAuth();
 
-  const token =
-    user?.access_token ||
-    localStorage.getItem("access_token") ||
-    null;
+  const messageSetRef = useRef(new Set()); // Track message IDs to prevent duplicates
+  const typingTimeoutRef = useRef({});
+  const currentRoomRef = useRef(null);
 
-  /* -------------------------------------------------------
-       LOAD CHATS
-  -------------------------------------------------------- */
+  /**
+   * ✅ HELPER: Normalize user ID
+   */
+  const getUserId = useCallback(() => {
+    return user?.id || user?.user_id || user?._id;
+  }, [user]);
+
+  /**
+   * ✅ ENHANCED: Load chats with error handling
+   */
   const loadChats = useCallback(async () => {
-    try {
-      console.log("🟦 ChatContext.loadChats called, token:", token?.substring(0, 20) + "...");
-      if (!token) return console.warn("No token available to load chats");
-
-      const res = await chatApi.getAllChats(token);
-      console.log("🟦 ChatContext.loadChats response:", res);
-
-      // Backend returns res.data.data.chats, but chatApi.getAllChats already unwraps to res.data
-      // So we expect res to be the data object: {chats: [...]}
-      const chatsList = res?.chats || res || [];
-      console.log("🟦 ChatContext setting chats:", chatsList);
-
-      setChats(chatsList);
-    } catch (err) {
-      console.error("🔴 Failed to load chats:", err);
-      console.error("🔴 Error response:", err.response?.data);
+    if (!token || !isAuthenticated) {
+      console.warn("⛔ Cannot load chats: Not authenticated");
+      return;
     }
-  }, [token]);
 
-  /* -------------------------------------------------------
-       LOAD CHAT MESSAGES
-  -------------------------------------------------------- */
+    setLoadingChats(true);
+
+    try {
+      console.log("📥 Loading chats...");
+      
+      const response = await chatApi.getAllChats(token);
+      
+      // Handle different response formats
+      const chatsList = response?.chats || response?.data?.chats || response || [];
+      
+      console.log(`✅ Loaded ${chatsList.length} chats`);
+      setChats(chatsList);
+
+    } catch (err) {
+      console.error("❌ Failed to load chats:", err);
+      
+      // Don't clear chats on error - keep existing data
+      if (err.response?.status === 401) {
+        console.log("🔐 Unauthorized - token may be expired");
+      }
+    } finally {
+      setLoadingChats(false);
+    }
+  }, [token, isAuthenticated]);
+
+  /**
+   * ✅ ENHANCED: Load messages with pagination
+   */
   const loadMessages = useCallback(
-    async (chatId) => {
+    async (chatId, pageNum = 1) => {
+      if (!token || !chatId) return;
+
       setLoadingMessages(true);
+
       try {
-        if (!token) return;
+        console.log(`📥 Loading messages for chat ${chatId}, page ${pageNum}`);
 
-        const res = await messageApi.getMessages(chatId, token);
+        const response = await messageApi.getMessages(chatId, token, {
+          page: pageNum,
+          limit: 50,
+        });
 
-        if (!res || !Array.isArray(res.messages)) {
-          console.warn("⚠️ No messages found for chat:", chatId, "Response:", res);
-          setMessages([]); // Fallback to an empty array
-          return;
+        const newMessages = response?.messages || [];
+
+        if (pageNum === 1) {
+          // First page - replace messages
+          setMessages(newMessages);
+          messageSetRef.current = new Set(newMessages.map((m) => m._id));
+        } else {
+          // Subsequent pages - prepend messages
+          setMessages((prev) => {
+            const uniqueMessages = newMessages.filter(
+              (msg) => !messageSetRef.current.has(msg._id)
+            );
+            
+            uniqueMessages.forEach((msg) => messageSetRef.current.add(msg._id));
+            
+            return [...uniqueMessages, ...prev];
+          });
         }
 
-        setMessages(res.messages);
+        setHasMore(newMessages.length === 50);
+        setPage(pageNum);
+
+        console.log(`✅ Loaded ${newMessages.length} messages`);
+      } catch (err) {
+        console.error("❌ Failed to load messages:", err);
+        
+        if (pageNum === 1) {
+          setMessages([]);
+        }
       } finally {
         setLoadingMessages(false);
       }
@@ -86,74 +143,219 @@ export const ChatProvider = ({ children }) => {
     [token]
   );
 
-  /* -------------------------------------------------------
-       OPEN CHAT + JOIN ROOM
-  -------------------------------------------------------- */
+  /**
+   * ✅ NEW: Load more messages (pagination)
+   */
+  const loadMoreMessages = useCallback(() => {
+    if (!hasMore || loadingMessages || !activeChatId) return;
+    loadMessages(activeChatId, page + 1);
+  }, [hasMore, loadingMessages, activeChatId, page, loadMessages]);
+
+  /**
+   * ✅ ENHANCED: Open chat and join room
+   */
   const openChat = useCallback(
     (chatId) => {
-      setActiveChatId(chatId);
-      loadMessages(chatId);
+      if (!chatId) return;
 
-      if (socket) {
-        // FIX: Use consistent user.id (AuthContext always sets this)
-        console.log(`📥 Joining chat room: chat:${chatId}`);
-        safeEmit("join_chat", {
+      console.log(`📂 Opening chat: ${chatId}`);
+
+      // Leave current room
+      if (currentRoomRef.current && socket && isConnected) {
+        console.log(`🚪 Leaving room: ${currentRoomRef.current}`);
+        socket.emit("leave_chat", { chat_id: currentRoomRef.current });
+      }
+
+      setActiveChatId(chatId);
+      setPage(1);
+      setHasMore(true);
+      messageSetRef.current.clear();
+      
+      loadMessages(chatId, 1);
+
+      // Join new room
+      if (socket && isConnected) {
+        const userId = getUserId();
+        
+        console.log(`🚪 Joining room: ${chatId}`);
+        socket.emit("join_chat", {
           chat_id: chatId,
-          user_id: user?.id,
+          user_id: userId,
         });
+
+        currentRoomRef.current = chatId;
+      } else {
+        console.warn("⚠️ Socket not connected, cannot join room");
       }
     },
-    [socket, user, loadMessages, safeEmit]
+    [socket, isConnected, loadMessages, getUserId]
   );
 
-  /* -------------------------------------------------------
-       SEND MESSAGE
-  -------------------------------------------------------- */
-  const sendMessage = async (chatId, data) => {
-    try {
-      if (!token) return console.error("Missing token for sendMessage");
-      const res = await messageApi.sendMessage(chatId, data, token);
-
-      if (res?.message) {
-        setMessages((prev) => [...prev, res.message]);
+  /**
+   * ✅ ENHANCED: Send message with optimistic update
+   */
+  const sendMessage = useCallback(
+    async (chatId, data) => {
+      if (!token || !chatId) {
+        console.error("❌ Missing token or chatId for sendMessage");
+        return null;
       }
-    } catch (err) {
-      console.error("Send message failed:", err);
-    }
-  };
 
-  /* -------------------------------------------------------
-       HANDLE NEW MESSAGE
-  -------------------------------------------------------- */
-  const handleNewMessage = (msg) => {
-    if (!msg || !msg.chat_id) {
-      console.warn("Received invalid message object:", msg);
-      return;
-    }
+      // Create optimistic message
+      const optimisticMessage = {
+        _id: `temp-${Date.now()}`,
+        chat_id: chatId,
+        sender_id: getUserId(),
+        content: data.content || data.text,
+        timestamp: new Date().toISOString(),
+        status: "sending",
+        is_encrypted: true,
+        ...data,
+      };
 
-    if (msg.chat_id === activeChatId) {
-      setMessages((prev) => [...prev, msg]);
-    }
-    loadChats(); // update sidebar previews
-  };
+      // Add to UI immediately
+      setMessages((prev) => [...prev, optimisticMessage]);
 
-  /* -------------------------------------------------------
-       HANDLE REACTION
-  -------------------------------------------------------- */
-  const handleReactionAdded = ({ message_id, emoji, user_id }) => {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m._id === message_id
-          ? { ...m, reactions: [...(m.reactions || []), { emoji, user_id }] }
-          : m
-      )
-    );
-  };
+      try {
+        const response = await messageApi.sendMessage(chatId, data, token);
 
-  /* -------------------------------------------------------
-       HANDLE MESSAGE SEEN
-  -------------------------------------------------------- */
-  const handleMessageSeen = ({ message_id, user_id }) => {
+        if (response?.message) {
+          // Replace optimistic message with real one
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === optimisticMessage._id ? response.message : msg
+            )
+          );
+
+          messageSetRef.current.add(response.message._id);
+
+          // Update chat preview
+          loadChats();
+
+          return response.message;
+        }
+      } catch (err) {
+        console.error("❌ Send message failed:", err);
+
+        // Mark message as failed
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg._id === optimisticMessage._id
+              ? { ...msg, status: "failed" }
+              : msg
+          )
+        );
+
+        throw err;
+      }
+    },
+    [token, getUserId, loadChats]
+  );
+
+  /**
+   * ✅ ENHANCED: Handle new message with deduplication
+   */
+  const handleNewMessage = useCallback(
+    (msg) => {
+      if (!msg || !msg._id || !msg.chat_id) {
+        console.warn("⚠️ Received invalid message:", msg);
+        return;
+      }
+
+      // Prevent duplicates
+      if (messageSetRef.current.has(msg._id)) {
+        console.log("⚠️ Duplicate message ignored:", msg._id);
+        return;
+      }
+
+      console.log("📨 New message received:", msg._id);
+
+      // Add to active chat if it matches
+      if (msg.chat_id === activeChatId) {
+        setMessages((prev) => [...prev, msg]);
+        messageSetRef.current.add(msg._id);
+
+        // Mark as seen if chat is active
+        if (socket && isConnected) {
+          socket.emit("mark_seen", {
+            message_id: msg._id,
+            chat_id: msg.chat_id,
+          });
+        }
+      }
+
+      // Update chat list
+      loadChats();
+    },
+    [activeChatId, socket, isConnected, loadChats]
+  );
+
+  /**
+   * ✅ ENHANCED: Handle typing start
+   */
+  const handleTypingStart = useCallback(
+    ({ chat_id, user_id, username }) => {
+      if (!chat_id || !user_id || chat_id !== activeChatId) return;
+      if (user_id === getUserId()) return; // Don't show own typing
+
+      console.log(`⌨️ ${username || user_id} is typing in ${chat_id}`);
+
+      setTypingUsers((prev) => {
+        if (prev.find((u) => u.user_id === user_id)) return prev;
+        return [...prev, { user_id, username }];
+      });
+
+      // Auto-clear after 5 seconds
+      if (typingTimeoutRef.current[user_id]) {
+        clearTimeout(typingTimeoutRef.current[user_id]);
+      }
+
+      typingTimeoutRef.current[user_id] = setTimeout(() => {
+        handleTypingStop({ chat_id, user_id });
+      }, 5000);
+    },
+    [activeChatId, getUserId]
+  );
+
+  /**
+   * ✅ ENHANCED: Handle typing stop
+   */
+  const handleTypingStop = useCallback(
+    ({ chat_id, user_id }) => {
+      if (!chat_id || !user_id || chat_id !== activeChatId) return;
+
+      console.log(`⌨️ ${user_id} stopped typing`);
+
+      setTypingUsers((prev) => prev.filter((u) => u.user_id !== user_id));
+
+      if (typingTimeoutRef.current[user_id]) {
+        clearTimeout(typingTimeoutRef.current[user_id]);
+        delete typingTimeoutRef.current[user_id];
+      }
+    },
+    [activeChatId]
+  );
+
+  /**
+   * ✅ NEW: Emit typing indicator
+   */
+  const emitTyping = useCallback(
+    (chatId, isTyping) => {
+      if (!socket || !isConnected || !chatId) return;
+
+      safeEmit(isTyping ? "typing_start" : "typing_stop", {
+        chat_id: chatId,
+        user_id: getUserId(),
+        username: user?.username,
+      });
+    },
+    [socket, isConnected, safeEmit, getUserId, user]
+  );
+
+  /**
+   * ✅ ENHANCED: Handle message seen
+   */
+  const handleMessageSeen = useCallback(({ message_id, user_id }) => {
     setMessages((prev) =>
       prev.map((m) =>
         m._id === message_id
@@ -161,67 +363,89 @@ export const ChatProvider = ({ children }) => {
           : m
       )
     );
-  };
+  }, []);
 
-  /* -------------------------------------------------------
-       HANDLE TYPING START/STOP
-  -------------------------------------------------------- */
-  const handleTypingStart = ({ chat_id, user_id }) => {
-    if (!chat_id || !user_id) {
-      console.warn("Invalid typing start event:", { chat_id, user_id });
-      return;
-    }
-
-    if (chat_id !== activeChatId) return;
-    setTypingUsers((prev) =>
-      prev.includes(user_id) ? prev : [...prev, user_id]
+  /**
+   * ✅ ENHANCED: Handle reaction added
+   */
+  const handleReactionAdded = useCallback(({ message_id, emoji, user_id }) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._id === message_id
+          ? {
+              ...m,
+              reactions: [...(m.reactions || []), { emoji, user_id }],
+            }
+          : m
+      )
     );
-  };
+  }, []);
 
-  const handleTypingStop = ({ chat_id, user_id }) => {
-    if (!chat_id || !user_id) {
-      console.warn("Invalid typing stop event:", { chat_id, user_id });
-      return;
-    }
-
-    if (chat_id !== activeChatId) return;
-    setTypingUsers((prev) => prev.filter((id) => id !== user_id));
-  };
-
-  /* -------------------------------------------------------
-       REGISTER SOCKET HANDLERS
-  -------------------------------------------------------- */
+  /**
+   * ✅ EFFECT: Register socket event handlers
+   */
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !isConnected) return;
 
-    registerChatHandlers(socket, {
-      onNewMessage: handleNewMessage,
-      onTypingStart: handleTypingStart,
-      onTypingStop: handleTypingStop,
-      onMessageSeen: handleMessageSeen,
-      onReactionAdded: handleReactionAdded,
-    });
+    console.log("📡 Registering chat socket handlers");
 
-    registerTypingHandlers(socket, {
-      onTypingStart: handleTypingStart,
-      onTypingStop: handleTypingStop,
-    });
-  }, [socket, activeChatId]);
+    // Message events
+    socket.on("message:new", handleNewMessage);
+    socket.on("new_message", handleNewMessage); // Backward compatibility
 
-  /* -------------------------------------------------------
-       INITIAL LOAD
-  -------------------------------------------------------- */
-  const { access_token } = useAuth();
+    // Typing events
+    socket.on("typing_start", handleTypingStart);
+    socket.on("typing_stop", handleTypingStop);
 
+    // Read receipts
+    socket.on("message_seen", handleMessageSeen);
+
+    // Reactions
+    socket.on("reaction_added", handleReactionAdded);
+
+    // Cleanup
+    return () => {
+      console.log("📡 Unregistering chat socket handlers");
+      
+      socket.off("message:new", handleNewMessage);
+      socket.off("new_message", handleNewMessage);
+      socket.off("typing_start", handleTypingStart);
+      socket.off("typing_stop", handleTypingStop);
+      socket.off("message_seen", handleMessageSeen);
+      socket.off("reaction_added", handleReactionAdded);
+    };
+  }, [
+    socket,
+    isConnected,
+    handleNewMessage,
+    handleTypingStart,
+    handleTypingStop,
+    handleMessageSeen,
+    handleReactionAdded,
+  ]);
+
+  /**
+   * ✅ EFFECT: Load chats on mount
+   */
   useEffect(() => {
-    if (!token) return; // do NOT fetch chats until logged in
+    if (!isAuthenticated || !token) return;
     loadChats();
-  }, [token, loadChats]);
+  }, [isAuthenticated, token, loadChats]);
 
+  /**
+   * ✅ EFFECT: Rejoin room on reconnection
+   */
+  useEffect(() => {
+    if (isConnected && activeChatId) {
+      console.log(`🔄 Rejoining room after reconnection: ${activeChatId}`);
+      
+      socket.emit("join_chat", {
+        chat_id: activeChatId,
+        user_id: getUserId(),
+      });
+    }
+  }, [isConnected, activeChatId, socket, getUserId]);
 
-  /* -------------------------------------------------------
-       PROVIDER
-  -------------------------------------------------------- */
   return (
     <ChatContext.Provider
       value={{
@@ -230,16 +454,24 @@ export const ChatProvider = ({ children }) => {
         messages,
         typingUsers,
         loadingMessages,
+        loadingChats,
+        hasMore,
+        page,
 
+        // Methods
         openChat,
         sendMessage,
         reloadChats: loadChats,
+        loadMoreMessages,
+        emitTyping,
 
-        TypingEmit,
-        ChatEmit,
+        // State setters (for external use)
+        setMessages,
       }}
     >
       {children}
     </ChatContext.Provider>
   );
 };
+
+export default ChatContext;

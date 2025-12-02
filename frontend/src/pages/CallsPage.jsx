@@ -1,10 +1,10 @@
 // FILE: src/pages/CallsPage.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import { useCall } from "../context/CallContext";
-import callApi from "../services/callService"; // your correct call service
+import callApi from "../api/callApi"; // align to your API layer
 import useChats from "../hooks/useChats";
 
 import VideoCallUI from "../components/VideoCallUI";
@@ -12,7 +12,7 @@ import VoiceCallUI from "../components/VoiceCallUI";
 
 export default function CallsPage() {
   const { chatId } = useParams();
-  const { activeChat } = useChats();
+  const { chats, getChatById } = useChats();
 
   const { inCall, callInfo, startCall, endCall } = useCall();
 
@@ -24,29 +24,29 @@ export default function CallsPage() {
   useEffect(() => {
     const loadHistory = async () => {
       if (!chatId) return;
-
-      const token = localStorage.getItem("access_token");
-      const res = await callApi.getCallHistory(chatId, token);
-
-      if (res?.calls && Array.isArray(res.calls)) {
-        setHistory(res.calls);
-      } else {
+      try {
+        const token = localStorage.getItem("access_token");
+        const res = await callApi.getCallHistory(chatId, token);
+        setHistory(Array.isArray(res?.calls) ? res.calls : []);
+      } catch (e) {
+        console.error("Failed to load call history:", e);
         setHistory([]);
       }
     };
-
     loadHistory();
   }, [chatId]);
 
   /* --------------------------------------------------------
         FIND OTHER USER (PRIVATE CHAT ONLY)
   -------------------------------------------------------- */
-  const loggedInUser = localStorage.getItem("uid");
+  const activeChat = useMemo(() => getChatById(chatId), [getChatById, chatId]);
 
+  const loggedInUser = localStorage.getItem("uid");
   const receiverId =
-    activeChat &&
-    activeChat.chat_type === "private"
-      ? activeChat.participants?.find((u) => u !== loggedInUser)
+    activeChat && (activeChat.chat_type === "private" || !activeChat.is_group)
+      ? activeChat.participants?.find((u) => (u.id || u._id || u) !== loggedInUser)?.id ||
+        activeChat.participants?.find((u) => (u.id || u._id || u) !== loggedInUser)?._id ||
+        activeChat.participants?.find((u) => u !== loggedInUser)
       : null;
 
   /* --------------------------------------------------------
@@ -67,10 +67,9 @@ export default function CallsPage() {
     <div className="w-full px-6 py-6 text-white bg-[#0D1117] h-screen overflow-y-auto">
       <h2 className="text-2xl font-bold mb-4">Calls</h2>
 
-      {/* ===== CALL ACTION BUTTONS ===== */}
       {!receiverId && (
         <p className="text-red-400 mb-4">
-          Cannot start a call — this is a group chat.
+          Cannot start a call — this is a group chat or receiver not found.
         </p>
       )}
 

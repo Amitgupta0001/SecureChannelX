@@ -7,25 +7,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     <!-- App Title -->
-    <title>SecureChannelX — Encrypted Messaging</title>
+    <title>SecureChannelX — Military-Grade Encrypted Messaging</title>
 
     <!-- Description -->
     <meta name="description"
-        content="SecureChannelX is a modern, end-to-end encrypted chat and file-sharing platform with post-quantum security." />
+        content="SecureChannelX: End-to-end encrypted messaging, secure video calls, and file sharing with military-grade AES-256-GCM encryption and post-quantum security." />
+
+    <!-- Keywords -->
+    <meta name="keywords" content="encrypted messaging, secure chat, end-to-end encryption, private messaging, secure file sharing, video calls, WebRTC, AES-256" />
+
+    <!-- Author -->
+    <meta name="author" content="SecureChannelX Team" />
 
     <!-- ========================================================= -->
     <!--                   THEME & APPEARANCE                      -->
     <!-- ========================================================= -->
 
-    <!-- Theme for Chrome / Edge / Android -->
-    <meta name="theme-color" content="#0D1117" />
+    <!-- Theme for Chrome / Edge / Safari / Android (not supported in Firefox/Opera) -->
+    <meta name="theme-color" content="#667eea" />
+    <meta name="theme-color" content="#0D1117" media="(prefers-color-scheme: dark)" />
 
     <!-- iOS PWA Status Bar -->
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SecureChannelX" />
 
     <!-- Windows Tile -->
-    <meta name="msapplication-TileColor" content="#0D1117" />
+    <meta name="msapplication-TileColor" content="#667eea" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
 
     <!-- Prefer dark UI -->
     <meta name="color-scheme" content="dark light" />
@@ -34,43 +45,218 @@
     <!--                SECURE CLIENT-SIDE HEADERS                 -->
     <!-- ========================================================= -->
 
+    <!-- Prevent MIME type sniffing -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     
-    <!-- CSP: Allow scripts from self, styles from self/inline, connect to API/Socket -->
+    <!-- Content Security Policy - Fixed syntax -->
     <meta http-equiv="Content-Security-Policy" 
-          content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://localhost:5050 http://localhost:5050 http://10.230.255.71:5050 ws://10.230.255.71:5050;" />
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval';
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: blob: https:;
+                   media-src 'self' blob:;
+                   connect-src 'self' http://localhost:5000 http://localhost:5050 ws://localhost:5050 wss://localhost:5050 http://10.230.255.71:5050 ws://10.230.255.71:5050;
+                   worker-src 'self' blob:;
+                   base-uri 'self';
+                   form-action 'self';" />
 
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <!-- Referrer Policy -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
 
-    <!-- Open Graph for Social Previews -->
-    <meta property="og:title" content="SecureChannelX" />
-    <meta property="og:description" content="Military-grade encrypted messaging & secure file sharing." />
+    <!-- Permissions Policy -->
+    <meta name="permissions-policy" content="camera=*, microphone=*, geolocation=(), payment=()" />
+
+    <!-- ========================================================= -->
+    <!--                  OPEN GRAPH / SOCIAL                      -->
+    <!-- ========================================================= -->
+
+    <meta property="og:title" content="SecureChannelX — Encrypted Messaging" />
+    <meta property="og:description" content="Military-grade encrypted messaging, video calls, and secure file sharing." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://securechannelx.com" />
     <meta property="og:image" content="/preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="SecureChannelX" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SecureChannelX — Encrypted Messaging" />
+    <meta name="twitter:description" content="Military-grade encrypted messaging and secure file sharing." />
+    <meta name="twitter:image" content="/preview.png" />
+    <meta name="twitter:creator" content="@securechannelx" />
 
     <!-- ========================================================= -->
     <!--                FAVICONS / ICONS / PWA                     -->
     <!-- ========================================================= -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="manifest" href="/manifest.json" />
 
-    <!-- Prevent flash of unstyled content -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png" />
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-120.png" />
+    <link rel="apple-touch-icon" sizes="114x114" href="/icons/icon-114.png" />
+    <link rel="apple-touch-icon" sizes="76x76" href="/icons/icon-76.png" />
+    <link rel="apple-touch-icon" sizes="72x72" href="/icons/icon-72.png" />
+    <link rel="apple-touch-icon" sizes="57x57" href="/icons/icon-57.png" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#667eea" />
+
+    <!-- ========================================================= -->
+    <!--                     PRECONNECT / DNS                      -->
+    <!-- ========================================================= -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- ========================================================= -->
+    <!--                   CRITICAL CSS / LOADING                  -->
+    <!-- ========================================================= -->
+
     <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        html { 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            text-rendering: optimizeLegibility; 
+        }
         body {
-            background-color: #0D1117;
+            background: linear-gradient(135deg, #0D1117 0%, #161B22 100%);
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+                         "Helvetica Neue", Arial, sans-serif;
+            color: #c9d1d9;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(102, 126, 234, 0.2);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 9999;
+        }
+        
+        @keyframes spin { 
+            to { 
+                transform: translate(-50%, -50%) rotate(360deg); 
+            } 
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { 
+            width: 10px; 
+            height: 10px; 
+        }
+        ::-webkit-scrollbar-track { 
+            background: #161B22; 
+        }
+        ::-webkit-scrollbar-thumb { 
+            background: #30363d; 
+            border-radius: 5px; 
+        }
+        ::-webkit-scrollbar-thumb:hover { 
+            background: #484f58; 
+        }
+        
+        /* Text selection */
+        ::selection { 
+            background-color: rgba(102, 126, 234, 0.3); 
+            color: #fff; 
+        }
+        
+        /* Skip to content link */
+        .skip-to-content {
+            position: absolute;
+            left: -9999px;
+            z-index: 10000;
+            padding: 1em;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .skip-to-content:focus {
+            left: 1rem;
+            top: 1rem;
         }
     </style>
 </head>
 
 <body>
-    <!-- React root container -->
-    <div id="root"></div>
+    <a href="#root" class="skip-to-content">
+        Skip to main content
+    </a>
+
+    <!-- Loading indicator -->
+    <div id="loading" class="loading-spinner" role="status" aria-label="Loading application">
+        <span class="sr-only">Loading SecureChannelX...</span>
+    </div>
+
+    <div id="root" role="main"></div>
+
+    <noscript>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:2rem;background:linear-gradient(135deg,#0D1117,#161B22);color:#c9d1d9;">
+            <h1 style="font-size:2rem;margin-bottom:1rem;color:#ff6b6b;">⚠️ JavaScript Required</h1>
+            <p style="font-size:1.1rem;margin-bottom:1rem;max-width:500px;">SecureChannelX requires JavaScript to run. Please enable JavaScript to continue.</p>
+            <p style="font-size:0.9rem;color:#8b949e;max-width:500px;">Your messages and calls are end-to-end encrypted for maximum security.</p>
+        </div>
+    </noscript>
 
     <!-- Vite entrypoint -->
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Service Worker Registration -->
+    <script type="module">
+        // Hide loading spinner when app loads
+        window.addEventListener('DOMContentLoaded', () => {
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+        });
+
+        // Register service worker in production
+        if ('serviceWorker' in navigator && import.meta.env.PROD) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('✅ Service Worker registered:', registration);
+                    })
+                    .catch((error) => {
+                        console.warn('⚠️ Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+
+    <!-- Error handling -->
+    <script>
+        window.addEventListener('error', (event) => {
+            console.error('Global error caught:', event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+    </script>
 </body>
 </html>

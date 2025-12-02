@@ -1,57 +1,221 @@
-# -----------------------
+# ============================================================
+#         SecureChannelX - Universal .gitignore
+# ============================================================
+# This file is for the project root. It covers both the Python
+# backend and the Node.js/Vite frontend.
+
+# ========================================
+# Security & Secrets
+# ========================================
+# Ignore all environment files. Use .env.example to commit templates.
+.env
+.env.*
+!.env.example
+
+# Ignore sensitive credentials and secret keys
+secrets/
+credentials/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.p8
+*.private
+*.public
+*.jks
+
+# ========================================
+# Dependencies
+# ========================================
+# Node.js
+node_modules/
+
 # Python
-# -----------------------
 venv/
 env/
 ENV/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pdb
-*.pkl
-*.db
-*.sqlite3
+.venv/
+.env/
+*.egg-info/
+*.egg
 
-# If you're using pipenv / poetry
-.mypy_cache/
-.pytest_cache/
-.python-version
+# ========================================
+# Build & Distribution Artifacts
+# ========================================
+# General
+build/
+dist/
+out/
 
-# -----------------------
-# Node.js
-# -----------------------
-node_modules/
+# Frontend (Vite, Next.js, etc.)
+.vite/
+.next/
+.nuxt/
+.vercel/
+.netlify/
+storybook-static/
+
+# Python
+sdist/
+wheels/
+pip-wheel-metadata/
+develop-eggs/
+.Python
+*.so
+
+# ========================================
+# Logs & Runtime Data
+# ========================================
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-dist/
-build/
+lerna-debug.log*
+*.pid
+*.pid.lock
+*.seed
 
-# -----------------------
-# OS / Editor files
-# -----------------------
-.DS_Store
-Thumbs.db
+# =gunicorn/celery PIDs
+gunicorn.pid
+celery.pid
 
+# ========================================
+# Local Databases
+# ========================================
+*.db
+*.sqlite
+*.sqlite3
+# Ignore *.db files in subdirectories as well
+**/*.db
+**/*.sqlite3
+
+# ========================================
+# IDE & Editor Configuration
+# ========================================
 # VSCode
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 *.code-workspace
-backend/tests/
-DEPLOYMENT.md
-# JetBrains
+
+# JetBrains (PyCharm, WebStorm, etc.)
 .idea/
 
-# -----------------------
-# Environment files
-# -----------------------
-.env
-.env.local
-.env.*.local
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
 
-# -----------------------
-# Logs
-# -----------------------
-logs/
-*.log
+# ========================================
+# Python Specific
+# ========================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ========================================
+# Testing & Coverage
+# ========================================
+# General
+coverage/
+.coverage
+.coverage.*
+*.lcov
+
+# Python
+.pytest_cache/
+htmlcov/
+.tox/
+
+# JavaScript
+.jest/
+test-results/
+playwright-report/
+
+# ========================================
+# Caches
+# ========================================
+.cache/
+.parcel-cache/
+.npm/
+.eslintcache
+.stylelintcache
+.tsbuildinfo
+*.tsbuildinfo
+
+# ========================================
+# OS Generated Files
+# ========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ========================================
+# Temporary & Backup Files
+# ========================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
+# ========================================
+# Project-Specific
+# ========================================
+# User-generated content
+uploads/
+temp/
+downloads/
+
+# Error reports
+error-report-*.json
+errors-*.csv
+
+# Temporary status and test files
+FILE_STATUS_REPORT.md
+LATEST_STATUS_CHECK.md
+*_STATUS_*.md
+backend/test_*.py
+backend/check_all_files.py
+backend/quick_status.py
+backend/create_test_users.py
+backend/delete_test_users.py
+
+# Build statistics
+frontend/stats.html
+stats.html
+
+# Removed backend directories (not needed for monolithic app)
+backend/gateway/
+backend/docs/
+backend/scripts/
+backend/generate_*.py
+backend/requirements-dev.txt
+backend/requirements-prod.txt
+backend/QUICKSTART.md
+
+# Empty log directories
+backend/app/logs/

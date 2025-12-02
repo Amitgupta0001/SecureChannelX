@@ -5,12 +5,27 @@ import useChats from "../hooks/useChats";
 import { useNavigate } from "react-router-dom";
 
 export default function Chats() {
-  const { sidebarChats, activeChatId, openChat } = useChats();
+  const {
+    chats,
+    getFilteredChats,
+    markAsRead,
+  } = useChats();
+
   const navigate = useNavigate();
 
+  const sidebarChats = getFilteredChats().map((c) => ({
+    _id: c._id || c.id,
+    title: c.name || c.participant_name || "Unknown",
+    unread: c.unread_count || c.unread || 0,
+    lastMessage: c.last_message?.content || c.lastMessage || "",
+    typing: !!c.is_typing,
+  }));
+
   const handleSelect = (chat) => {
-    openChat(chat._id);
-    navigate(`/chat/${chat._id}`);
+    const id = chat._id;
+    if (!id) return;
+    markAsRead(id);
+    navigate(`/chat/${id}`);
   };
 
   return (
@@ -27,12 +42,9 @@ export default function Chats() {
             <div
               key={chat._id}
               onClick={() => handleSelect(chat)}
-              className={`p-4 rounded-xl cursor-pointer border border-[#1f2937] bg-[#111827] hover:bg-[#1f2937] transition ${
-                activeChatId === chat._id ? "bg-[#1f2937]" : ""
-              }`}
+              className={`p-4 rounded-xl cursor-pointer border border-[#1f2937] bg-[#111827] hover:bg-[#1f2937] transition`}
             >
               <div className="flex items-center gap-4">
-
                 {/* Avatar */}
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-lg font-semibold">
                   {chat.title?.[0] || "?"}
@@ -53,9 +65,7 @@ export default function Chats() {
 
                   {/* Last message / typing indicator */}
                   <p className="text-gray-400 text-sm mt-1">
-                    {chat.typing
-                      ? "Someone is typing..."
-                      : chat.lastMessage || "No messages yet"}
+                    {chat.typing ? "Someone is typing..." : chat.lastMessage || "No messages yet"}
                   </p>
                 </div>
               </div>

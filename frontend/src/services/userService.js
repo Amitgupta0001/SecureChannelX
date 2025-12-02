@@ -4,19 +4,23 @@ import axios from "axios";
 
 const API = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
+// Shared axios instance with timeout
+const http = axios.create({ baseURL: API, timeout: 10000 });
+
 // Correct Authorization header
 const auth = () => ({
-  headers: {
-    Authorization: "Bearer " + localStorage.getItem("access_token")
-  }
+  headers: { Authorization: "Bearer " + localStorage.getItem("access_token") },
 });
+
+const safeError = (err, fallback = "Request failed") =>
+  err?.response?.data || { error: fallback };
 
 /* ----------------------------------------------------
    GET CURRENT USER PROFILE
 ---------------------------------------------------- */
 export async function getUserProfile() {
   try {
-    const res = await axios.get(`${API}/users/me`, auth());
+    const res = await http.get(`/users/me`, auth());
     return res.data;
   } catch (err) {
     console.error("getUserProfile error:", err.response?.data || err);
@@ -29,7 +33,7 @@ export async function getUserProfile() {
 ---------------------------------------------------- */
 export async function updateProfile(data) {
   try {
-    const res = await axios.put(`${API}/users/update`, data, auth());
+    const res = await http.put(`/users/update`, data, auth());
     return res.data;
   } catch (err) {
     console.error("updateProfile error:", err.response?.data || err);
@@ -42,10 +46,10 @@ export async function updateProfile(data) {
 ---------------------------------------------------- */
 export async function searchUsers(query) {
   try {
-    const res = await axios.get(
-      `${API}/users/search?q=${encodeURIComponent(query)}`,
-      auth()
-    );
+    const res = await http.get(`/users/search`, {
+      ...auth(),
+      params: { q: query },
+    });
     return res.data;
   } catch (err) {
     console.error("searchUsers error:", err.response?.data || err);
@@ -58,7 +62,7 @@ export async function searchUsers(query) {
 ---------------------------------------------------- */
 export async function getPublicProfile(userId) {
   try {
-    const res = await axios.get(`${API}/users/${userId}`, auth());
+    const res = await http.get(`/users/${userId}`, auth());
     return res.data;
   } catch (err) {
     console.error("getPublicProfile error:", err.response?.data || err);
@@ -71,8 +75,8 @@ export async function getPublicProfile(userId) {
 ---------------------------------------------------- */
 export async function changePassword(oldPassword, newPassword) {
   try {
-    const res = await axios.post(
-      `${API}/users/change-password`,
+    const res = await http.post(
+      `/users/change-password`,
       { old_password: oldPassword, new_password: newPassword },
       auth()
     );
@@ -91,12 +95,9 @@ export async function uploadAvatar(file) {
   formData.append("avatar", file);
 
   try {
-    const res = await axios.post(`${API}/users/avatar`, formData, {
+    const res = await http.post(`/users/avatar`, formData, {
       ...auth(),
-      headers: {
-        ...auth().headers,
-        "Content-Type": "multipart/form-data",
-      },
+      headers: { ...auth().headers, "Content-Type": "multipart/form-data" },
     });
     return res.data;
   } catch (err) {
@@ -104,3 +105,14 @@ export async function uploadAvatar(file) {
     return { error: "Failed to upload avatar" };
   }
 }
+
+const userService = {
+  getUserProfile,
+  updateProfile,
+  searchUsers,
+  getPublicProfile,
+  changePassword,
+  uploadAvatar,
+};
+
+export default userService;
