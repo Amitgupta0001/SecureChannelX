@@ -218,3 +218,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# =====================================================================
+#              WSGI/Gunicorn Entry Point (for production)
+# =====================================================================
+# When running with Gunicorn, import app and socketio at module level
+from app.app_factory import create_app, socketio
+
+# Create app instance for Gunicorn
+app = create_app()
