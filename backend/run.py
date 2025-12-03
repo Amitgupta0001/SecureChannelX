@@ -10,9 +10,11 @@ import io
 from dotenv import load_dotenv
 
 # =====================================================================
-#                     FORCE SOCKET.IO TO USE WERKZEUG
+#                     SOCKET.IO ASYNC MODE CONFIGURATION
 # =====================================================================
-os.environ["FLASK_SOCKETIO_ASYNC_MODE"] = "threading"
+# For development with Flask dev server, use threading
+# For production with Gunicorn + eventlet, comment this out
+# os.environ["FLASK_SOCKETIO_ASYNC_MODE"] = "threading"
 
 # Load environment variables
 load_dotenv()
