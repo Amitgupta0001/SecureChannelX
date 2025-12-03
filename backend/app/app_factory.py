@@ -153,6 +153,7 @@ def create_app():
     from app.routes.users import users_bp
     from app.routes.keys import keys_bp
     from app.routes.webauthn import webauthn_bp  # WebAuthn/FIDO2
+    from app.routes.health import health_bp  # Health checks
     
     app_factory.register_blueprint(auth_bp)
     app_factory.register_blueprint(security_bp)
@@ -168,6 +169,7 @@ def create_app():
     app_factory.register_blueprint(users_bp)
     app_factory.register_blueprint(keys_bp)
     app_factory.register_blueprint(webauthn_bp)  # WebAuthn/FIDO2
+    app_factory.register_blueprint(health_bp)  # Health checks
 
 
     # ----------------------------------------------------

@@ -13,7 +13,7 @@
 [![Security](https://img.shields.io/badge/Security-Post--Quantum-blueviolet.svg)](https://csrc.nist.gov/projects/post-quantum-cryptography)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-[Features](#-features) • [Security](#️-security-architecture) • [Tech Stack](#️-technology-stack) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing)
+[Features](#-features) • [Security](#️-security-architecture) • [Tech Stack](#️-technology-stack) • [Quick Start](#-quick-start) • [Documentation](docs/) • [Contributing](#-contributing)
 
 </div>
 
@@ -228,6 +228,35 @@ To start a conversation, the initiator (Alice) fetches the recipient's (Bob) pre
 ---
 
 ## 🚀 Quick Start
+
+### 🐳 Production Deployment (Docker - Recommended)
+
+For production environments, use Docker Compose:
+
+```bash
+# Clone repository
+git clone https://github.com/Amitgupta0001/SecureChannelX.git
+cd SecureChannelX
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Deploy with one command
+chmod +x deploy.sh
+./deploy.sh start
+```
+
+**Access**:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+- Health Check: http://localhost:5000/api/health
+
+📚 **[See Complete Deployment Guide →](docs/PRODUCTION_DEPLOYMENT.md)**
+
+---
+
+### 💻 Development Setup
 
 ### Prerequisites
 
