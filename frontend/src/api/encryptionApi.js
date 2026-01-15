@@ -125,6 +125,57 @@ const encryptionApi = {
       throw error;
     }
   },
+
+  /**
+   * Distribute Group Sender Keys
+   */
+  distributeGroupKeys: async (groupId, keys, token) => {
+    try {
+      const response = await axios.post(
+        `${API_BASE}/api/groups/${groupId}/keys/distribute`,
+        { keys },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("❌ Failed to distribute group keys:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Sender Key for a group member
+   */
+  getSenderKey: async (groupId, senderId, token) => {
+    try {
+      const response = await axios.get(
+        `${API_BASE}/api/groups/${groupId}/keys/${senderId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      // 404 is valid if key not shared yet
+      if (error.response?.status === 404) return null;
+      console.error("❌ Failed to get group key:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get members missing my key
+   */
+  getMissingMembers: async (groupId, token) => {
+    try {
+      const response = await axios.get(
+        `${API_BASE}/api/groups/${groupId}/keys/missing`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data.missing_members || [];
+    } catch (error) {
+      console.error("Failed to get missing members", error);
+      return [];
+    }
+  },
 };
 
 export default encryptionApi;

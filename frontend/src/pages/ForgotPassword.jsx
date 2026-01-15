@@ -1,90 +1,98 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import authApi from "../api/authApi";
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { Mail, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 
-export default function ForgotPassword() {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+const ForgotPassword = () => {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [message, setMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    setError("");
+    setStatus('loading');
 
     try {
-      const res = await authApi.forgotPassword(email.trim());
-      if (res?.success) {
-        setMessage(res.message || "Reset link sent.");
-      } else {
-        setError(res?.message || "Failed to send reset link.");
-      }
+      // Use the new API endpoint
+      const response = await axios.post('http://localhost:5050/api/auth/forgot-password', { email });
+      setStatus('success');
+      setMessage(response.data.message || 'If that email exists, a reset link has been sent.');
     } catch (err) {
-      setError(err.response?.data?.message || "An error occurred.");
-    } finally {
-      setLoading(false);
+      setStatus('error');
+      setMessage(err.response?.data?.error || 'Something went wrong. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0D1117] text-white p-4">
-      <div className="w-full max-w-md bg-[#111827] rounded-lg shadow-xl p-8 border border-[#1f2937]">
-        <h2 className="text-3xl font-bold text-center mb-6">Forgot Password</h2>
-
-        {message && (
-          <div
-            className="mb-4 p-3 bg-green-500/20 border border-green-500 text-green-200 rounded text-center"
-            role="status"
-          >
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div
-            className="mb-4 p-3 bg-red-500/20 border border-red-500 text-red-200 rounded text-center"
-            role="alert"
-          >
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              className="w-full px-4 py-3 bg-[#0D1117] border border-[#1f2937] rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition active:scale-95 disabled:opacity-60"
-          >
-            {loading ? "Sending..." : "Send Reset Link"}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <Link
-            to="/login"
-            className="text-blue-400 hover:text-white transition-colors text-sm"
-          >
-            ← Back to Login
-          </Link>
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700"
+      >
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">Reset Password</h2>
+          <p className="text-gray-400">Enter your email to receive a reset link</p>
         </div>
-      </div>
+
+        {status === 'success' ? (
+          <div className="text-center">
+            <div className="bg-green-500/10 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-400" />
+            </div>
+            <h3 className="text-white font-semibold text-lg mb-2">Check your email</h3>
+            <p className="text-gray-400 mb-6">{message}</p>
+            <Link
+              to="/login"
+              className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all"
+            >
+              Back to Login
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-gray-400 mb-2 font-medium">Email Address</label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 pl-10 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  placeholder="name@example.com"
+                />
+                <Mail className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+              </div>
+            </div>
+
+            {status === 'error' && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              {status === 'loading' ? 'Sending...' : 'Send Reset Link'}
+              {!status === 'loading' && <ArrowRight className="w-5 h-5" />}
+            </button>
+
+            <div className="text-center">
+              <Link to="/login" className="text-gray-400 hover:text-white transition-colors">
+                Back to Login
+              </Link>
+            </div>
+          </form>
+        )}
+      </motion.div>
     </div>
   );
-}
+};
+
+export default ForgotPassword;

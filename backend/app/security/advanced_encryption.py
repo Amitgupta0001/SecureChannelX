@@ -200,118 +200,140 @@ rate_limiter = RateLimiter()
 #                   QUANTUM-RESISTANT HYBRID KEM
 # ============================================================
 
-class HybridKEM:
-    """
-    ✅ ENHANCED: Hybrid KEM using ephemeral X25519 ECDH + HKDF with:
-    - Proper domain separation for all KEM operations
-    - Salt generation from random bytes
-    - Multiple security parameters for different use cases
-    """
+# Import Post-Quantum Cryptography module
+try:
+    from app.security.post_quantum import (
+        PostQuantumKEM,
+        generate_pqc_keypair,
+        pqc_encapsulate,
+        pqc_decapsulate,
+        is_pqc_available,
+        KYBER_AVAILABLE
+    )
     
-    # Domain separation labels
-    INFO_LABEL = b"SCX_HYBRID_KEM_V2"
-    ENCAPSULATE_LABEL = b"SCX_KEM_ENC"
-    DECAPSULATE_LABEL = b"SCX_KEM_DEC"
+    # Use the real PQC implementation
+    HybridKEM = PostQuantumKEM
     
-    @staticmethod
-    def generate_keypair() -> Tuple[x25519.X25519PrivateKey, x25519.X25519PublicKey]:
-        """✅ ENHANCED: Generate X25519 keypair"""
-        try:
-            priv = x25519.X25519PrivateKey.generate()
-            pub = priv.public_key()
-            logger.debug("[KEM] Generated keypair")
-            return priv, pub
-        except Exception as e:
-            logger.error(f"[KEM] Keypair generation failed: {e}")
-            raise
-    
-    @staticmethod
-    def serialize_pub(pub: x25519.X25519PublicKey) -> str:
-        """✅ ENHANCED: Serialize public key to base64"""
-        try:
-            raw = pub.public_bytes(
-                encoding=serialization.Encoding.Raw,
-                format=serialization.PublicFormat.Raw
-            )
-            return _b64(raw)
-        except Exception as e:
-            logger.error(f"[KEM] Serialization failed: {e}")
-            raise
-    
-    @staticmethod
-    def deserialize_pub(b64_pub: str) -> x25519.X25519PublicKey:
-        """✅ ENHANCED: Deserialize public key with validation"""
-        try:
-            raw = _unb64(b64_pub)
-            if len(raw) != 32:
-                raise ValueError("Invalid public key length")
-            return x25519.X25519PublicKey.from_public_bytes(raw)
-        except Exception as e:
-            logger.error(f"[KEM] Deserialization failed: {e}")
-            raise
-    
-    @classmethod
-    def encapsulate(cls, peer_pub: x25519.X25519PublicKey) -> Tuple[bytes, bytes]:
-        """
-        ✅ ENHANCED: Generate ephemeral keypair and derive shared secret
-        Returns: (ephemeral_public_raw, session_key_32_bytes)
-        """
-        try:
-            eph_priv = x25519.X25519PrivateKey.generate()
-            eph_pub = eph_priv.public_key()
-            
-            # ✅ ENHANCED: X25519 ECDH
-            shared = eph_priv.exchange(peer_pub)
-            
-            # ✅ ENHANCED: Use random salt and domain separation
-            salt = _secure_random(32)
-            
-            session_key = HKDF(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=salt,
-                info=cls.INFO_LABEL + cls.ENCAPSULATE_LABEL
-            ).derive(shared)
-            
-            eph_pub_raw = eph_pub.public_bytes(
-                encoding=serialization.Encoding.Raw,
-                format=serialization.PublicFormat.Raw
-            )
-            
-            # ✅ ENHANCED: Return salt with ephemeral public for decapsulation
-            logger.debug("[KEM] Encapsulation successful")
-            return (salt + eph_pub_raw), session_key
+    if KYBER_AVAILABLE:
+        logger.info("[CRYPTO] ✅ Post-Quantum Cryptography ENABLED (Kyber-1024)")
+    else:
+        logger.warning("[CRYPTO] ⚠️  Post-Quantum Cryptography NOT AVAILABLE")
+        logger.warning("[CRYPTO] Using X25519 only - Install pqcrypto for quantum resistance")
         
-        except Exception as e:
-            logger.error(f"[KEM] Encapsulation failed: {e}")
-            raise
+except ImportError as e:
+    logger.error(f"[CRYPTO] ❌ Failed to import PQC module: {e}")
+    logger.error("[CRYPTO] Falling back to X25519-only implementation")
     
-    @classmethod
-    def decapsulate(cls, capsule: bytes, priv: x25519.X25519PrivateKey) -> bytes:
-        """✅ ENHANCED: Decapsulate and derive shared secret"""
-        try:
-            if len(capsule) < 64:
-                raise ValueError("Invalid capsule length")
-            
-            salt = capsule[:32]
-            eph_pub_raw = capsule[32:64]
-            
-            eph_pub = x25519.X25519PublicKey.from_public_bytes(eph_pub_raw)
-            shared = priv.exchange(eph_pub)
-            
-            session_key = HKDF(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=salt,
-                info=cls.INFO_LABEL + cls.DECAPSULATE_LABEL
-            ).derive(shared)
-            
-            logger.debug("[KEM] Decapsulation successful")
-            return session_key
+    # Fallback to X25519-only implementation
+    class HybridKEM:
+        """
+        ✅ FALLBACK: X25519-only KEM (when Kyber not available)
+        """
         
-        except Exception as e:
-            logger.error(f"[KEM] Decapsulation failed: {e}")
-            raise
+        # Domain separation labels
+        INFO_LABEL = b"SCX_HYBRID_KEM_V2"
+        ENCAPSULATE_LABEL = b"SCX_KEM_ENC"
+        DECAPSULATE_LABEL = b"SCX_KEM_DEC"
+        
+        @staticmethod
+        def generate_keypair() -> Tuple[x25519.X25519PrivateKey, x25519.X25519PublicKey]:
+            """✅ ENHANCED: Generate X25519 keypair"""
+            try:
+                priv = x25519.X25519PrivateKey.generate()
+                pub = priv.public_key()
+                logger.debug("[KEM] Generated keypair")
+                return priv, pub
+            except Exception as e:
+                logger.error(f"[KEM] Keypair generation failed: {e}")
+                raise
+        
+        @staticmethod
+        def serialize_pub(pub: x25519.X25519PublicKey) -> str:
+            """✅ ENHANCED: Serialize public key to base64"""
+            try:
+                raw = pub.public_bytes(
+                    encoding=serialization.Encoding.Raw,
+                    format=serialization.PublicFormat.Raw
+                )
+                return _b64(raw)
+            except Exception as e:
+                logger.error(f"[KEM] Serialization failed: {e}")
+                raise
+        
+        @staticmethod
+        def deserialize_pub(b64_pub: str) -> x25519.X25519PublicKey:
+            """✅ ENHANCED: Deserialize public key with validation"""
+            try:
+                raw = _unb64(b64_pub)
+                if len(raw) != 32:
+                    raise ValueError("Invalid public key length")
+                return x25519.X25519PublicKey.from_public_bytes(raw)
+            except Exception as e:
+                logger.error(f"[KEM] Deserialization failed: {e}")
+                raise
+        
+        @classmethod
+        def encapsulate(cls, peer_pub: x25519.X25519PublicKey) -> Tuple[bytes, bytes]:
+            """
+            ✅ ENHANCED: Generate ephemeral keypair and derive shared secret
+            Returns: (ephemeral_public_raw, session_key_32_bytes)
+            """
+            try:
+                eph_priv = x25519.X25519PrivateKey.generate()
+                eph_pub = eph_priv.public_key()
+                
+                # ✅ ENHANCED: X25519 ECDH
+                shared = eph_priv.exchange(peer_pub)
+                
+                # ✅ ENHANCED: Use random salt and domain separation
+                salt = _secure_random(32)
+                
+                session_key = HKDF(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    info=cls.INFO_LABEL + cls.ENCAPSULATE_LABEL
+                ).derive(shared)
+                
+                eph_pub_raw = eph_pub.public_bytes(
+                    encoding=serialization.Encoding.Raw,
+                    format=serialization.PublicFormat.Raw
+                )
+                
+                # ✅ ENHANCED: Return salt with ephemeral public for decapsulation
+                logger.debug("[KEM] Encapsulation successful")
+                return (salt + eph_pub_raw), session_key
+            
+            except Exception as e:
+                logger.error(f"[KEM] Encapsulation failed: {e}")
+                raise
+        
+        @classmethod
+        def decapsulate(cls, capsule: bytes, priv: x25519.X25519PrivateKey) -> bytes:
+            """✅ ENHANCED: Decapsulate and derive shared secret"""
+            try:
+                if len(capsule) < 64:
+                    raise ValueError("Invalid capsule length")
+                
+                salt = capsule[:32]
+                eph_pub_raw = capsule[32:64]
+                
+                eph_pub = x25519.X25519PublicKey.from_public_bytes(eph_pub_raw)
+                shared = priv.exchange(eph_pub)
+                
+                session_key = HKDF(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    info=cls.INFO_LABEL + cls.DECAPSULATE_LABEL
+                ).derive(shared)
+                
+                logger.debug("[KEM] Decapsulation successful")
+                return session_key
+            
+            except Exception as e:
+                logger.error(f"[KEM] Decapsulation failed: {e}")
+                raise
 
 
 # ============================================================

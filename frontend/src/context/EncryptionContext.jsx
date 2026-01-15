@@ -382,26 +382,92 @@ export const EncryptionProvider = ({ children }) => {
   );
 
   /**
-   * ✅ Encrypt file
+   * ✅ Encrypt file (Hybrid Encryption)
+   * 1. Generates random AES key (FileKey)
+   * 2. Encrypts file content with FileKey
+   * 3. Returns encrypted blob + FileKey (to be sent via E2E message)
    */
-  const encryptFile = useCallback(
-    async (file, recipientId) => {
-      console.log("🔒 File encryption not yet implemented");
-      return file;
-    },
-    []
-  );
+  const encryptFile = useCallback(async (file) => {
+    try {
+      console.log("🔒 Encrypting file...", file.name);
+
+      // 1. Generate ephemeral File Key
+      const fileKey = await crypto.subtle.generateKey(
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      // 2. Export key to send later
+      const rawKey = await crypto.subtle.exportKey("raw", fileKey);
+      const keyBase64 = arrayToBase64(Array.from(new Uint8Array(rawKey)));
+
+      // 3. Encrypt file content
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const fileData = await file.arrayBuffer();
+
+      const encryptedContent = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        fileKey,
+        fileData
+      );
+
+      // 4. Create encrypted blob
+      const encryptedBlob = new Blob([encryptedContent], { type: "application/octet-stream" });
+
+      return {
+        encryptedBlob,
+        originalName: file.name,
+        mimeType: file.type,
+        encryption: {
+          key: keyBase64,
+          iv: arrayToBase64(Array.from(iv))
+        }
+      };
+
+    } catch (err) {
+      console.error("❌ File encryption failed:", err);
+      throw err;
+    }
+  }, []);
 
   /**
    * ✅ Decrypt file
    */
-  const decryptFile = useCallback(
-    async (encryptedFile) => {
-      console.log("🔓 File decryption not yet implemented");
-      return encryptedFile;
-    },
-    []
-  );
+  const decryptFile = useCallback(async (encryptedBlob, keyBase64, ivBase64, mimeType) => {
+    try {
+      if (!keyBase64 || !ivBase64) throw new Error("Missing decryption keys");
+
+      console.log("🔓 Decrypting file...");
+
+      // 1. Import File Key
+      const rawKey = base64ToArray(keyBase64);
+      const fileKey = await crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["decrypt"]
+      );
+
+      // 2. Decrypt content
+      const iv = base64ToArray(ivBase64);
+      const arrayBuffer = await encryptedBlob.arrayBuffer();
+
+      const decryptedContent = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv },
+        fileKey,
+        arrayBuffer
+      );
+
+      // 3. Reconstruct file
+      return new Blob([decryptedContent], { type: mimeType || "application/octet-stream" });
+
+    } catch (err) {
+      console.error("❌ File decryption failed:", err);
+      throw err;
+    }
+  }, []);
 
   /**
    * ✅ Get public identity key
@@ -439,6 +505,203 @@ export const EncryptionProvider = ({ children }) => {
     }
   }, [user, isInitialized, loading, initializeForUser]);
 
+  /* ---------------------------------------------------------------------------
+     * 👥 GROUP ENCRYPTION (Sender Keys)
+     * --------------------------------------------------------------------------- */
+  const [mySenderKeys, setMySenderKeys] = useState(new Map()); // groupId -> { key: "base64", keyId: 1 }
+  const [peerSenderKeys, setPeerSenderKeys] = useState(new Map()); // groupId:senderId -> { key: "base64", keyId: 1 }
+
+  /**
+   * Generate or retrieve my Sender Key for a group.
+   */
+  const getMySenderKey = async (groupId) => {
+    let keyData = mySenderKeys.get(groupId);
+    if (!keyData) {
+      // Generate new 32-byte key
+      const rawKey = generateRandomBytes(32);
+      keyData = {
+        key: arrayToBase64(rawKey),
+        keyId: Date.now()
+      };
+      setMySenderKeys(prev => new Map(prev).set(groupId, keyData));
+      console.log(`🔐 Generated new Sender Key for group ${groupId}`);
+    }
+    return keyData;
+  };
+
+  /**
+   * Distribute my Sender Key to group members.
+   * Encrypts the Sender Key using pairwise sessions for each member.
+   */
+  const distributeGroupKey = useCallback(async (groupId, participants) => {
+    if (!token) return;
+    const myKeyData = await getMySenderKey(groupId);
+    const distributionPayload = [];
+
+    // Identify who needs the key
+    const memberIds = participants
+      .map(p => typeof p === 'string' ? p : p._id || p.id)
+      .filter(id => id !== user.id); // Exclude self
+
+    console.log(`📡 Distributing Sender Key for group ${groupId} to ${memberIds.length} members...`);
+
+    for (const recipientId of memberIds) {
+      try {
+        // Use existing pairwise encryption to secure the Sender Key
+        // 1. Ensure session exists
+        await encryptText("PING", recipientId); // Triggers session creation if needed
+
+        // 2. Encrypt the 32-byte Sender Key
+        // We encrypt it as a JSON string to include metadata if needed later
+        const payload = JSON.stringify({ k: myKeyData.key, i: myKeyData.keyId });
+        const encrypted = await encryptText(payload, recipientId);
+
+        distributionPayload.push({
+          recipient_id: recipientId,
+          encrypted_key: JSON.stringify(encrypted), // Store full encrypted object
+          key_id: myKeyData.keyId
+        });
+      } catch (err) {
+        console.error(`❌ Failed to encrypt key for ${recipientId}:`, err);
+      }
+    }
+
+    if (distributionPayload.length > 0) {
+      await encryptionApi.distributeGroupKeys(groupId, distributionPayload, token);
+      console.log("✅ Group keys distributed successfully");
+    }
+
+    return distributionPayload; // Return for debugging
+  }, [token, user, encryptText, mySenderKeys]);
+
+
+  /**
+   * Encrypt message for Group (using my Sender Key).
+   */
+  const encryptGroup = useCallback(async (groupId, text) => {
+    const myKeyData = await getMySenderKey(groupId);
+
+    // Check if we need to distribute keys (simplistic check: do it on first message or random chance)
+    // In prod, check /keys/missing endpoint
+    if (Math.random() < 0.1) {
+      const missing = await encryptionApi.getMissingMembers(groupId, token);
+      if (missing.length > 0) {
+        await distributeGroupKey(groupId, missing);
+      }
+    }
+
+    // Encrypt content with Sender Key using AES-GCM
+    // Note: IV should be unique per message. Sender Keys usually use a "Ratchet" to derive 
+    // per-message keys, but for this simplified implementation, we generate a fresh IV.
+    // A unique IV with the same key is safe for AES-GCM (up to a limit).
+    try {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+
+      const keyBuffer = base64ToArray(myKeyData.key);
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        keyBuffer,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt"]
+      );
+
+      const encrypted = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        cryptoKey,
+        data
+      );
+
+      return {
+        ciphertext: arrayToBase64(Array.from(new Uint8Array(encrypted))),
+        nonce: arrayToBase64(Array.from(iv)), // "nonce" expected by backend/frontend
+        key_id: myKeyData.keyId,
+        step: 0 // Placeholder for Chain Key ratchet
+      };
+    } catch (err) {
+      console.error("❌ Group encryption failed:", err);
+      throw err;
+    }
+  }, [token, distributeGroupKey]);
+
+
+  /**
+   * Decrypt message from Group (using sender's Sender Key).
+   */
+  const decryptGroup = useCallback(async (groupId, senderId, encryptedData) => {
+    const cacheKey = `${groupId}:${senderId}`;
+    let peerKey = peerSenderKeys.get(cacheKey);
+
+    // 1. Fetch key if missing
+    if (!peerKey) {
+      console.log(`🔍 Fetching Sender Key for ${senderId} in group ${groupId}...`);
+      const remoteData = await encryptionApi.getSenderKey(groupId, senderId, token);
+
+      if (!remoteData) {
+        // Case: Sender hasn't shared key with me yet.
+        // In a real app, I would send a "Distribution Request" message correctly.
+        throw new Error("GROUP_KEY_MISSING");
+      }
+
+      // Decrypt the Sender Key (it was encrypted with my public key)
+      if (remoteData.encrypted_key) {
+        try {
+          // The stored blob matches encryptText output format (ciphertext, iv, sender_id logic)
+          // But here it's just the JSON string of {ciphertext, iv} because we stored it that way
+          const container = JSON.parse(remoteData.encrypted_key);
+
+          // We need to inject sender_id for decryptText to find the right session
+          container.sender_id = senderId;
+
+          const decryptedPayloadStr = await decryptText(container);
+          const decryptedPayload = JSON.parse(decryptedPayloadStr);
+
+          peerKey = {
+            key: decryptedPayload.k,
+            keyId: decryptedPayload.i
+          };
+
+          // Cache it
+          setPeerSenderKeys(prev => new Map(prev).set(cacheKey, peerKey));
+        } catch (e) {
+          console.error("❌ Failed to decrypt Peer Sender Key:", e);
+          throw new Error("Failed to unwrap group key");
+        }
+      }
+    }
+
+    if (!peerKey) throw new Error("Could not retrieve group key");
+
+    // 2. Decrypt the message content
+    try {
+      const keyBuffer = base64ToArray(peerKey.key);
+      const cryptoKey = await crypto.subtle.importKey(
+        "raw",
+        keyBuffer,
+        { name: "AES-GCM" },
+        false,
+        ["decrypt"]
+      );
+
+      const iv = base64ToArray(encryptedData.nonce || encryptedData.iv); // Handle both names
+      const ciphertext = base64ToArray(encryptedData.ciphertext);
+
+      const decrypted = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        cryptoKey,
+        ciphertext
+      );
+
+      return new TextDecoder().decode(decrypted);
+
+    } catch (err) {
+      console.error("❌ Group message decryption failed:", err);
+      throw err;
+    }
+  }, [token, peerSenderKeys, decryptText]);
+
   /**
    * ✅ Create context value
    */
@@ -449,6 +712,9 @@ export const EncryptionProvider = ({ children }) => {
       initializeForUser,
       encryptText,
       decryptText,
+      encryptGroup,
+      decryptGroup,
+      distributeGroupKey,
       encryptFile,
       decryptFile,
       getPublicIdentityKey,
@@ -460,6 +726,9 @@ export const EncryptionProvider = ({ children }) => {
       initializeForUser,
       encryptText,
       decryptText,
+      encryptGroup,
+      decryptGroup,
+      distributeGroupKey,
       encryptFile,
       decryptFile,
       getPublicIdentityKey,

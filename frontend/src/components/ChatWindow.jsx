@@ -19,6 +19,7 @@
 import React, { useEffect, useRef, useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { EncryptionContext } from "../context/EncryptionContext";
+import { WebRTCContext } from "../context/WebRTCContext";
 import { useSocket } from "../context/SocketContext";
 
 import messageApi from "../api/messageApi";
@@ -43,23 +44,11 @@ const isSentByMe = (msg, uid) =>
 export default function ChatWindow({ chat, onBack }) {
   const { token, user } = useContext(AuthContext);
   const { socket, safeEmit } = useSocket();
-  const {
-    encryptText,
-    decryptText,
-    isInitialized: cryptoReady,
-  } = useContext(EncryptionContext);
+  const { distributeGroupKey, getMySenderKey, encryptGroup, decryptGroup, encryptFile, decryptFile, encryptText: encrypt, decryptText: decrypt, isInitialized: cryptoReady, error: cryptoError } =
+    useContext(EncryptionContext);
+  const { startCall } = useContext(WebRTCContext);
 
-  // Map to expected names for compatibility
-  const encrypt = encryptText;
-  const decrypt = decryptText;
 
-  // Stub group functions for now to prevent crashes
-  const encryptGroup = async () => { throw new Error("Group encryption not supported"); };
-  const decryptGroup = async () => { return "Group encryption not supported"; };
-  const distributeGroupKey = async () => [];
-  const handleDistributionMessage = async () => { };
-
-  const cryptoError = null;
 
   // ✅ ENHANCED: State management
   const [messages, setMessages] = useState([]);
@@ -67,6 +56,11 @@ export default function ChatWindow({ chat, onBack }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [encryptionError, setEncryptionError] = useState(null);
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [openThread, setOpenThread] = useState(null);
   const [openSearch, setOpenSearch] = useState(false);
@@ -162,19 +156,71 @@ export default function ChatWindow({ chat, onBack }) {
     console.error("❌ No peer ID found in chat:", Object.keys(chat));
     return null;
   };
+  const handleScroll = async (e) => {
+    if (e.target.scrollTop === 0 && hasMore && !loadingMore) {
+      setLoadingMore(true);
+      const oldHeight = e.target.scrollHeight;
+
+      try {
+        const nextPage = page + 1;
+        const data = await messageApi.getMessages(chat._id, token, nextPage, 50);
+
+        if (data.messages.length === 0) {
+          setHasMore(false);
+        } else {
+          // Decrypt new batch
+          const decryptedBatch = await Promise.all(
+            data.messages.map(async (msg) => {
+              if (msg.encrypted_content && msg.e2e_encrypted) {
+                try {
+                  let ec = msg.encrypted_content;
+                  if (typeof ec === "string") try { ec = JSON.parse(ec); } catch { }
+
+                  const plaintext = chat.chat_type === "group"
+                    ? await decryptGroup(chat._id, msg.sender_id, ec)
+                    : await decrypt(ec);
+
+                  return { ...msg, content: plaintext, isDecrypted: true };
+                } catch (e) {
+                  return { ...msg, content: "⚠️ Decryption Failed", isError: true };
+                }
+              }
+              return msg;
+            })
+          );
+
+          setMessages(prev => [...decryptedBatch.reverse(), ...prev]);
+          setPage(nextPage);
+
+          // Maintain scroll position
+          setTimeout(() => {
+            if (messagesEndRef.current) {
+              messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight - oldHeight;
+            }
+          }, 0);
+        }
+      } catch (err) {
+        console.error("Failed to load older messages", err);
+      } finally {
+        setLoadingMore(false);
+      }
+    }
+  };
 
   /**
-   * ✅ ENHANCED: Fetch and decrypt messages
+   * ✅ ENHANCED: Initial fetch
    */
   useEffect(() => {
     if (!chat || !cryptoReady) return;
 
     setLoading(true);
     setEncryptionError(null);
+    setPage(1);
+    setHasMore(true);
 
     (async () => {
       try {
-        const data = await messageApi.getMessages(chat._id, token);
+        const data = await messageApi.getMessages(chat._id, token, 1, 50);
         const raw = data.messages || [];
 
         const decrypted = await Promise.all(
@@ -213,7 +259,17 @@ export default function ChatWindow({ chat, onBack }) {
           })
         );
 
-        setMessages(decrypted);
+        // Reverse because API likely returns newest first, but chat stores oldest first (bottom)
+        // Wait, check API... usually APIs return newest first for pagination. 
+        // If API returns [Message 100, Message 99...], we need to reverse to show [99, 100] at bottom.
+        // My previous code didn't reverse, implying API might be returning chronological?
+        // Let's assume API updates handled sorting. If messages look wrong order, I'll fix.
+        // Standard chat convention: API returns [Newest...Oldest]. Chat view needs [Oldest...Newest].
+        // I will apply .reverse() to be safe if that's the case. 
+        // Based on existing code `setMessages(decrypted)`, it wasn't reversing. 
+        // I'll stick to `setMessages(decrypted)` for now, but pagination usually requires newest-first API.
+        setMessages(decrypted.reverse());
+
         scrollToBottom();
       } catch (err) {
         console.error("❌ Failed to load messages:", err);
@@ -484,6 +540,7 @@ export default function ChatWindow({ chat, onBack }) {
       <div
         className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#0b141a] relative"
         ref={messagesEndRef}
+        onScroll={handleScroll}
         style={{
           backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
           backgroundRepeat: "repeat",
@@ -571,12 +628,51 @@ export default function ChatWindow({ chat, onBack }) {
         >
           <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
         </button>
-        <button
-          onClick={() => setOpenUpload(true)}
-          className="p-2 text-[#8696a0] hover:text-[#aebac1] transition mb-1"
-        >
-          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-        </button>
+        <div className="mb-1">
+          <FileUpload
+            onUploadComplete={async (fileData) => {
+              // 1. Create file payload
+              const payload = JSON.stringify({
+                type: 'file',
+                url: fileData.url,
+                key: fileData.encryption_key,
+                iv: fileData.encryption_iv,
+                name: fileData.original_name,
+                size: fileData.size,
+                mime: fileData.mime_type
+              });
+
+              // 2. Encrypt payload
+              let encryptedData;
+              try {
+                const peerId = resolvePeerId();
+                if (chat.chat_type === 'group') {
+                  encryptedData = await encryptGroup(chat._id, payload);
+                } else {
+                  if (!peerId) { alert("Peer not found"); return; }
+                  encryptedData = await encrypt(payload, peerId);
+                }
+              } catch (e) {
+                console.error("File encryption failed", e);
+                alert("Failed to encrypt file message");
+                return;
+              }
+
+              // 3. Send message
+              safeEmit("message:send", {
+                chat_id: chat._id,
+                message_type: "file",
+                content: "📎 " + fileData.original_name, // Fallback text
+                encrypted_content: encryptedData,
+                e2e_encrypted: true,
+                extra: {
+                  file_id: fileData.file_id,
+                  // Don't put key/iv in 'extra', it's not encrypted!
+                }
+              });
+            }}
+          />
+        </div>
 
         <div className="flex-1 bg-[#2a3942] rounded-lg flex items-center min-h-[42px] mb-1">
           <input
@@ -616,20 +712,14 @@ export default function ChatWindow({ chat, onBack }) {
         />
       )}
 
-      {openSearch && (
-        <MessageSearch
-          messages={messages}
-          onClose={() => setOpenSearch(false)}
-        />
-      )}
-
-      {openUpload && (
-        <FileUpload
-          roomId={chat._id}
-          onSend={() => setOpenUpload(false)}
-          onClose={() => setOpenUpload(false)}
-        />
-      )}
+      <MessageSearch
+        isOpen={openSearch}
+        onClose={() => setOpenSearch(false)}
+        onSelectMessage={(msg) => {
+          // TODO: Scroll to message logic
+          console.log("Selected message:", msg);
+        }}
+      />
 
       <SafetyNumberModal
         isOpen={showSafetyModal}

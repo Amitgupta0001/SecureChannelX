@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 # =====================================================================
 # For development with Flask dev server, use threading
 # For production with Gunicorn + eventlet, comment this out
-# os.environ["FLASK_SOCKETIO_ASYNC_MODE"] = "threading"
+os.environ["FLASK_SOCKETIO_ASYNC_MODE"] = "threading"
 
 # Load environment variables
 load_dotenv()

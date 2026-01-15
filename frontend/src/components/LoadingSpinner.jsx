@@ -1,113 +1,136 @@
 /**
- * ✅ ENHANCED: SecureChannelX - Loading Spinner Component
- * -------------------------------------------------------
- * Reusable loading spinner with variants
- * 
- * Changes:
- *   - Added: Multiple spinner variants
- *   - Added: Size variants
- *   - Added: Color variants
- *   - Added: Optional text label
+ * SecureChannelX - Enhanced Loading Spinner Component
+ * Modern, smooth loading animations
  */
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
 
 export default function LoadingSpinner({ 
   size = "md", 
-  variant = "border", 
+  variant = "modern", 
   color = "purple",
   text = null,
-  fullScreen = false 
+  fullScreen = false,
+  message = null
 }) {
   // Size mapping
   const sizes = {
-    xs: 16,
-    sm: 24,
-    md: 40,
-    lg: 56,
-    xl: 72,
+    xs: 20,
+    sm: 32,
+    md: 48,
+    lg: 64,
+    xl: 80,
   };
 
   const sizeValue = sizes[size] || sizes.md;
 
-  // Color mapping
-  const colors = {
-    purple: "border-purple-500",
-    blue: "border-blue-500",
-    green: "border-green-500",
-    red: "border-red-500",
-    yellow: "border-yellow-500",
-  };
-
-  const colorClass = colors[color] || colors.purple;
-
   /**
-   * ✅ VARIANT: Border spinner (default)
+   * Modern Spinner - Smooth rotating ring
    */
-  const BorderSpinner = () => (
-    <motion.div
-      animate={{ rotate: 360 }}
-      transition={{
-        repeat: Infinity,
-        duration: 0.8,
-        ease: "linear",
-      }}
-      className={`border-4 border-transparent ${colorClass} rounded-full`}
-      style={{ width: sizeValue, height: sizeValue }}
-    />
+  const ModernSpinner = () => (
+    <div className="relative" style={{ width: sizeValue, height: sizeValue }}>
+      {/* Outer ring */}
+      <motion.div
+        className="absolute inset-0 rounded-full border-4 border-purple-500/20"
+        style={{ borderTopColor: '#a855f7', borderRightColor: '#a855f7' }}
+        animate={{ rotate: 360 }}
+        transition={{
+          repeat: Infinity,
+          duration: 1,
+          ease: "linear",
+        }}
+      />
+      
+      {/* Inner glow */}
+      <motion.div
+        className="absolute inset-2 rounded-full bg-purple-500/10"
+        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{
+          repeat: Infinity,
+          duration: 2,
+          ease: "easeInOut",
+        }}
+      />
+    </div>
   );
 
   /**
-   * ✅ VARIANT: Dots spinner
+   * Dots Spinner - Three bouncing dots
    */
   const DotsSpinner = () => (
     <div className="flex gap-2">
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          animate={{ y: [0, -10, 0] }}
+          className="w-3 h-3 bg-purple-500 rounded-full"
+          animate={{ y: [0, -12, 0] }}
           transition={{
             repeat: Infinity,
             duration: 0.6,
-            delay: i * 0.1,
+            delay: i * 0.15,
             ease: "easeInOut",
           }}
-          className={`w-3 h-3 ${colorClass.replace("border-", "bg-")} rounded-full`}
         />
       ))}
     </div>
   );
 
   /**
-   * ✅ VARIANT: Pulse spinner
+   * Pulse Spinner - Pulsing circle
    */
   const PulseSpinner = () => (
     <motion.div
-      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+      className="bg-purple-500 rounded-full"
+      style={{ width: sizeValue, height: sizeValue }}
+      animate={{ 
+        scale: [1, 1.3, 1], 
+        opacity: [0.6, 1, 0.6] 
+      }}
       transition={{
         repeat: Infinity,
         duration: 1.5,
         ease: "easeInOut",
       }}
-      className={`${colorClass.replace("border-", "bg-")} rounded-full`}
-      style={{ width: sizeValue, height: sizeValue }}
     />
   );
 
   /**
-   * ✅ VARIANT: Icon spinner (Loader2)
+   * Orbit Spinner - Orbiting dots
    */
-  const IconSpinner = () => (
-    <Loader2
-      className={`animate-spin ${colorClass.replace("border-", "text-")}`}
-      style={{ width: sizeValue, height: sizeValue }}
-    />
+  const OrbitSpinner = () => (
+    <div className="relative" style={{ width: sizeValue, height: sizeValue }}>
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          className="absolute top-1/2 left-1/2 w-3 h-3 bg-purple-500 rounded-full"
+          style={{
+            marginLeft: -6,
+            marginTop: -6,
+          }}
+          animate={{
+            rotate: 360,
+          }}
+          transition={{
+            repeat: Infinity,
+            duration: 1.5,
+            delay: i * 0.5,
+            ease: "linear",
+          }}
+        >
+          <div 
+            className="absolute bg-purple-500 rounded-full w-3 h-3"
+            style={{
+              left: sizeValue / 2 - 6,
+            }}
+          />
+        </motion.div>
+      ))}
+    </div>
   );
 
   /**
-   * ✅ Render selected variant
+   * Render selected variant
    */
   const renderSpinner = () => {
     switch (variant) {
@@ -115,31 +138,78 @@ export default function LoadingSpinner({
         return <DotsSpinner />;
       case "pulse":
         return <PulseSpinner />;
-      case "icon":
-        return <IconSpinner />;
+      case "orbit":
+        return <OrbitSpinner />;
+      case "modern":
       default:
-        return <BorderSpinner />;
+        return <ModernSpinner />;
     }
   };
 
   const content = (
-    <div className="flex flex-col items-center justify-center gap-3">
+    <motion.div 
+      className="flex flex-col items-center justify-center gap-4"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       {renderSpinner()}
-      {text && (
-        <p className={`text-sm ${colorClass.replace("border-", "text-")} font-medium`}>
-          {text}
-        </p>
+      
+      {(text || message) && (
+        <motion.p 
+          className="text-white font-medium text-center max-w-xs"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          {text || message}
+        </motion.p>
       )}
-    </div>
+    </motion.div>
   );
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-50">
-        {content}
-      </div>
+      <motion.div 
+        className="fixed inset-0 bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center z-50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        {/* Animated background particles */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 bg-white/10 rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -30, 0],
+                opacity: [0.2, 0.5, 0.2],
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 3 + Math.random() * 2,
+                delay: Math.random() * 2,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </div>
+        
+        <div className="relative z-10">
+          {content}
+        </div>
+      </motion.div>
     );
   }
 
-  return <div className="w-full flex justify-center items-center py-6">{content}</div>;
+  return (
+    <div className="w-full flex justify-center items-center py-8">
+      {content}
+    </div>
+  );
 }

@@ -8,6 +8,7 @@ import { ChatProvider } from "./context/ChatContext";
 import { GroupProvider } from "./context/GroupContext";
 import { CallProvider } from "./context/CallContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { WebRTCProvider } from "./context/WebRTCContext"; // Newly Added
 
 // Eager-loaded components (authentication)
 import Login from "./pages/Login";
@@ -22,10 +23,12 @@ const DirectMessagePage = lazy(() => import("./pages/DirectMessagePage"));
 const GroupPage = lazy(() => import("./pages/GroupPage"));
 const CallsPage = lazy(() => import("./pages/CallsPage"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
 const Devices = lazy(() => import("./pages/Devices"));
 
 import LoadingSpinner from "./components/LoadingSpinner";
 import NotFound from "./pages/NotFound";
+import CallModal from "./components/CallModal"; // Newly Added
 
 import "./styles/App.css";
 
@@ -36,13 +39,9 @@ const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    console.log("🟡 ProtectedRoute - Authentication loading...");
     return (
       <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center", height: "100vh",
         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
       }}>
         <LoadingSpinner message="Authenticating..." />
@@ -51,11 +50,9 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!user) {
-    console.log("🔴 ProtectedRoute - No user, redirecting to /login");
     return <Navigate to="/login" replace state={{ from: window.location.pathname }} />;
   }
 
-  console.log("✅ ProtectedRoute - User authenticated:", user.username);
   return children;
 };
 
@@ -63,21 +60,10 @@ const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      }}>
-        <LoadingSpinner />
-      </div>
-    );
+    return <div style={{ height: "100vh" }}><LoadingSpinner /></div>;
   }
 
   if (user) {
-    console.log("🟢 PublicRoute - User already authenticated, redirecting to /");
     return <Navigate to="/" replace />;
   }
 
@@ -88,13 +74,7 @@ const PublicRoute = ({ children }) => {
    LOADING FALLBACK
 ======================================== */
 const SuspenseFallback = () => (
-  <div style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100vh",
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  }}>
+  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#111b21" }}>
     <LoadingSpinner message="Loading..." />
   </div>
 );
@@ -110,7 +90,9 @@ const AppProviders = ({ children }) => (
           <ChatProvider>
             <GroupProvider>
               <CallProvider>
-                {children}
+                <WebRTCProvider> {/* Integrated WebRTC */}
+                  {children}
+                </WebRTCProvider>
               </CallProvider>
             </GroupProvider>
           </ChatProvider>
@@ -126,104 +108,74 @@ const AppProviders = ({ children }) => (
 const AppRoutes = () => (
   <Routes>
     {/* ==================== PUBLIC ROUTES ==================== */}
-    <Route
-      path="/login"
-      element={
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      }
-    />
-    <Route
-      path="/register"
-      element={
-        <PublicRoute>
-          <Register />
-        </PublicRoute>
-      }
-    />
+    <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+    <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
     <Route path="/2fa" element={<TwoFactorAuth />} />
-    <Route
-      path="/forgot-password"
-      element={
-        <PublicRoute>
-          <ForgotPassword />
-        </PublicRoute>
-      }
-    />
-    <Route path="/reset-password/:token" element={<ResetPassword />} />
+    <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+    <Route path="/reset-password" element={<ResetPassword />} />
 
     {/* ==================== PROTECTED ROUTES ==================== */}
-    <Route
-      path="/"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<SuspenseFallback />}>
-            <ChatRoom />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <ChatRoom />
+        </Suspense>
+      </ProtectedRoute>
+    } />
 
     {/* DIRECT MESSAGE */}
-    <Route
-      path="/dm/:userId"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<SuspenseFallback />}>
-            <DirectMessagePage />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/dm/:userId" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <DirectMessagePage />
+        </Suspense>
+      </ProtectedRoute>
+    } />
 
     {/* GROUP CHAT */}
-    <Route
-      path="/group/:groupId"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<SuspenseFallback />}>
-            <GroupPage />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/group/:groupId" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <GroupPage />
+        </Suspense>
+      </ProtectedRoute>
+    } />
 
     {/* CALLS */}
-    <Route
-      path="/calls/:chatId?"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<SuspenseFallback />}>
-            <CallsPage />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/calls/:chatId?" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <CallsPage />
+        </Suspense>
+      </ProtectedRoute>
+    } />
 
     {/* USER PROFILE */}
-    <Route
-      path="/profile/:userId?"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<SuspenseFallback />}>
-            <Profile />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
+    <Route path="/profile/:userId?" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Profile />
+        </Suspense>
+      </ProtectedRoute>
+    } />
 
-    {/* ACTIVE DEVICES */}
-    <Route
-      path="/devices"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<SuspenseFallback />}>
-            <Devices />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
+    {/* SETTINGS */}
+    <Route path="/settings" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Settings />
+        </Suspense>
+      </ProtectedRoute>
+    } />
+
+    {/* DEVICES */}
+    <Route path="/devices" element={
+      <ProtectedRoute>
+        <Suspense fallback={<SuspenseFallback />}>
+          <Devices />
+        </Suspense>
+      </ProtectedRoute>
+    } />
 
     {/* ==================== ERROR ROUTES ==================== */}
     <Route path="/404" element={<NotFound />} />
@@ -238,6 +190,7 @@ export default function App() {
   return (
     <AppProviders>
       <Router>
+        <CallModal /> {/* Calls Overlay */}
         <AppRoutes />
       </Router>
     </AppProviders>

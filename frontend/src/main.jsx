@@ -125,10 +125,10 @@ function setupPerformanceMonitoring() {
    SERVICE WORKER REGISTRATION (PWA)
 ======================================== */
 async function registerServiceWorker() {
-  if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  if ("serviceWorker" in navigator) {
     try {
       const registration = await navigator.serviceWorker.register(
-        "/service-worker.js"
+        "/sw.js"
       );
       console.log("✅ Service Worker registered:", registration.scope);
 

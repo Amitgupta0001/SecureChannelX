@@ -14,12 +14,87 @@ from app import socketio
 # Utils
 from app.utils.response_builder import success, error
 from app.utils.helpers import now_utc
+from app.security.group_encryption import get_group_key_manager
 
 # Models
 from app.models.group_model import group_document
 from app.models.chat_model import chat_document
 
+logger = logging.getLogger(__name__)
+
 groups_bp = Blueprint("groups", __name__, url_prefix="/api/groups")
+
+# --- Group Key Management Routes (Sender Keys) ---
+
+@groups_bp.route('/<group_id>/keys/distribute', methods=['POST'])
+@jwt_required()
+def distribute_keys(group_id):
+    """
+    Upload my Sender Key encrypted for multiple recipients.
+    Payload: {
+        'keys': [
+            {'recipient_id': 'uid1', 'encrypted_key': '...', 'key_id': 1},
+            ...
+        ]
+    }
+    """
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    keys = data.get('keys', [])
+    
+    if not keys:
+        return jsonify({'error': 'No keys provided'}), 400
+        
+    manager = get_group_key_manager()
+    
+    count = 0
+    for k in keys:
+        manager.store_sender_key(
+            group_id=group_id,
+            sender_id=user_id,
+            recipient_id=k['recipient_id'],
+            encrypted_key=k['encrypted_key'],
+            key_id=k.get('key_id', 1)
+        )
+        count += 1
+        
+    return jsonify({'message': f'Distributed keys to {count} members'}), 200
+
+@groups_bp.route('/<group_id>/keys/<sender_id>', methods=['GET'])
+@jwt_required()
+def get_sender_key(group_id, sender_id):
+    """
+    Get a specific member's Sender Key (encrypted for me).
+    """
+    user_id = get_jwt_identity()
+    manager = get_group_key_manager()
+    
+    key_data = manager.get_sender_key(
+        group_id=group_id, 
+        sender_id=sender_id, 
+        recipient_id=user_id
+    )
+    
+    if not key_data:
+        return jsonify({'error': 'Key not found (member has not shared key with you yet)'}), 404
+        
+    return jsonify({
+        'sender_id': sender_id,
+        'encrypted_key': key_data['encrypted_key'],
+        'key_id': key_data['key_id']
+    }), 200
+
+@groups_bp.route('/<group_id>/keys/missing', methods=['GET'])
+@jwt_required()
+def get_missing_members(group_id):
+    """
+    Get list of members who don't have my key yet.
+    """
+    user_id = get_jwt_identity()
+    manager = get_group_key_manager()
+    
+    missing = manager.get_missing_keys(group_id, user_id)
+    return jsonify({'missing_members': missing}), 200
 
 UPLOAD_FOLDER = os.getenv("GROUP_MEDIA_FOLDER", "group_media")
 ALLOWED_ICON_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}

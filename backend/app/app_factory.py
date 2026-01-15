@@ -67,6 +67,12 @@ def create_app():
             return response, 200
 
     # ----------------------------------------------------
+    # SECURITY HEADERS MIDDLEWARE
+    # ----------------------------------------------------
+    from app.middleware.security_headers import init_security_headers
+    init_security_headers(app_factory)
+
+    # ----------------------------------------------------
     # EXTENSIONS INIT
     # ----------------------------------------------------
     bcrypt.init_app(app_factory)
@@ -170,6 +176,19 @@ def create_app():
     app_factory.register_blueprint(keys_bp)
     app_factory.register_blueprint(webauthn_bp)  # WebAuthn/FIDO2
     app_factory.register_blueprint(health_bp)  # Health checks
+    
+    # New Blueprints (Phase 4)
+    from app.routes.password_reset import password_reset_bp
+    from app.routes.search import search_bp
+    from app.routes.files import files_bp
+    
+    app_factory.register_blueprint(password_reset_bp)
+    app_factory.register_blueprint(search_bp)
+    app_factory.register_blueprint(files_bp)
+    
+    # Honeypots (Security)
+    from app.routes.admin import bp as admin_bp
+    app_factory.register_blueprint(admin_bp)
 
 
     # ----------------------------------------------------

@@ -1,184 +1,176 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import authApi from "../api/authApi";
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
 
-export default function ResetPassword() {
-  const { token } = useParams();
+const ResetPassword = () => {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const token = searchParams.get('token');
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [validation, setValidation] = useState({
-    password: { valid: false, message: "", strength: 0, checks: {} },
-  });
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState('verifying'); // verifying, valid, invalid, submitting, success, error
+  const [message, setMessage] = useState('');
 
-  /**
-   * ✅ Password validation - FIXED
-   */
+  // Verify token on mount
   useEffect(() => {
-    const { password } = { password };
-
-    if (!password) {
-      setValidation((prev) => ({
-        ...prev,
-        password: { valid: false, message: "", strength: 0, checks: {} },
-      }));
+    if (!token) {
+      setStatus('invalid');
+      setMessage('Missing reset token.');
       return;
     }
 
-    const { strength, checks } = calculatePasswordStrength(password);
+    const verifyToken = async () => {
+      try {
+        await axios.post('http://localhost:5050/api/auth/verify-reset-token', { token });
+        setStatus('valid');
+      } catch (err) {
+        setStatus('invalid');
+        setMessage(err.response?.data?.error || 'Invalid or expired token.');
+      }
+    };
 
-    let message = "";
-    let valid = false;
-
-    if (strength < 40) {
-      message = "Weak password";
-      valid = false;
-    } else if (strength < 60) {
-      message = "Fair password";
-      valid = false;
-    } else if (strength < 80) {
-      message = "Good password";
-      valid = true;
-    } else {
-      message = "Strong password";
-      valid = true;
-    }
-
-    setValidation((prev) => ({
-      ...prev,
-      password: {
-        valid,
-        message,
-        strength,
-        checks,
-      },
-    }));
-  }, [password]);
-
-  const validate = () => {
-    if (password.length < 8) return "Password must be at least 8 characters.";
-    if (password !== confirmPassword) return "Passwords do not match.";
-    return "";
-  };
+    verifyToken();
+  }, [token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const msg = validate();
-    if (msg) return setError(msg);
 
-    setLoading(true);
-    setMessage("");
-    setError("");
+    if (password !== confirmPassword) {
+      setMessage('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      setMessage('Password must be at least 8 characters');
+      return;
+    }
+
+    setStatus('submitting');
 
     try {
-      const res = await authApi.resetPassword(token, password);
-      if (res.success) {
-        setMessage("Password reset successfully! Redirecting to login...");
-        setTimeout(() => navigate("/login"), 2000);
-      } else {
-        setError(res.message || "Failed to reset password");
-      }
+      await axios.post('http://localhost:5050/api/auth/reset-password', {
+        token,
+        new_password: password
+      });
+      setStatus('success');
     } catch (err) {
-      setError(err.response?.data?.message || "Invalid or expired token");
-    } finally {
-      setLoading(false);
+      setStatus('error');
+      setMessage(err.response?.data?.error || 'Failed to reset password.');
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0D1117] text-white p-4">
-      <div className="w-full max-w-md bg-[#111827] rounded-lg shadow-xl p-8 border border-[#1f2937]">
-        <h2 className="text-3xl font-bold text-center mb-6">Reset Password</h2>
+  if (status === 'verifying') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
-        {message && (
-          <div className="mb-4 p-3 bg-green-500/20 border border-green-500 text-green-200 rounded text-center">
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-500/20 border border-red-500 text-red-200 rounded text-center">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              New Password
-            </label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-3 bg-[#0D1117] border border-[#1f2937] rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Enter new password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-3 bg-[#0D1117] border border-[#1f2937] rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition active:scale-95 disabled:opacity-60"
-          >
-            {loading ? "Resetting..." : "Reset Password"}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <Link
-            to="/login"
-            className="text-blue-400 hover:text-white transition-colors text-sm"
-          >
-            ← Back to Login
+  if (status === 'invalid') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Invalid Link</h2>
+          <p className="text-gray-400 mb-6">{message}</p>
+          <Link to="/forgot-password" className="text-blue-400 hover:text-blue-300">
+            Request a new link
           </Link>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700"
+      >
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">New Password</h2>
+          <p className="text-gray-400">Enter your new secure password</p>
+        </div>
+
+        {status === 'success' ? (
+          <div className="text-center">
+            <div className="bg-green-500/10 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-400" />
+            </div>
+            <h3 className="text-white font-semibold text-lg mb-2">Password Reset!</h3>
+            <p className="text-gray-400 mb-6">Your password has been successfully updated.</p>
+            <Link
+              to="/login"
+              className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all"
+            >
+              Login with New Password
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-gray-400 mb-2 font-medium">New Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 pl-10 pr-10 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  placeholder="••••••••"
+                />
+                <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3.5 text-gray-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-400 mb-2 font-medium">Confirm Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 pl-10 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                  placeholder="••••••••"
+                />
+                <Lock className="w-5 h-5 text-gray-400 absolute left-3 top-3.5" />
+              </div>
+            </div>
+
+            {(status === 'error' || message) && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'submitting'}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              {status === 'submitting' ? 'Resetting...' : 'Reset Password'}
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </form>
+        )}
+      </motion.div>
     </div>
   );
-}
+};
 
-/**
- * Calculate password strength
- * @param {string} password
- * @returns {Object} strength, checks
- */
-function calculatePasswordStrength(password) {
-  let strength = 0;
-  const checks = {
-    length: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    numbers: /[0-9]/.test(password),
-    symbols: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-  };
-
-  strength += checks.length ? 20 : 0;
-  strength += checks.uppercase ? 20 : 0;
-  strength += checks.lowercase ? 20 : 0;
-  strength += checks.numbers ? 20 : 0;
-  strength += checks.symbols ? 20 : 0;
-
-  return { strength, checks };
-}
+export default ResetPassword;

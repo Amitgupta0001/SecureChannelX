@@ -52,15 +52,23 @@ eventlet==0.35.2
 #                   SECURITY & CRYPTOGRAPHY
 # ============================================================
 
-# Cryptography Library (E2EE, AES-256-GCM)
+# Core cryptography library
 cryptography==41.0.7
 
-# JWT Token Handling
+# Post-Quantum Cryptography (CRYSTALS-Kyber)
+pqcrypto==0.1.5
+
+# Password hashing (Argon2)
+argon2-cffi==23.1.0
+
+# JWT tokens
 PyJWT==2.8.0
 
-# Two-Factor Authentication (2FA)
+# TOTP (2FA)
 pyotp==2.9.0
 
+# Secure random
+secrets-manager==1.0.0
 # QR Code Generation (2FA setup)
 qrcode==7.4.2
 
@@ -84,11 +92,11 @@ certifi==2023.11.17
 # motor==3.3.2
 
 # ============================================================
-#                   REDIS (CACHING & RATE LIMITING)
+#                   REDIS (OPTIONAL - Uses in-memory fallback)
 # ============================================================
 
-# Redis Client
-redis==5.0.1
+# Redis Client (OPTIONAL - only needed for production/distributed systems)
+# redis==5.0.1
 
 # Alternative: Redis with async support
 # aioredis==2.0.1
@@ -119,24 +127,24 @@ jsonschema==4.20.0
 python-magic==0.4.27
 
 # ============================================================
-#                   BACKGROUND TASKS (OPTIONAL)
+#                   BACKGROUND TASKS (OPTIONAL - Not needed for local dev)
 # ============================================================
 
-# Celery for async tasks
-celery==5.3.4
+# Celery for async tasks (OPTIONAL)
+# celery==5.3.4
 
 # Celery message broker (Redis)
 # Already included above: redis==5.0.1
 
 # ============================================================
-#                   MONITORING & LOGGING
+#                   MONITORING & LOGGING (OPTIONAL)
 # ============================================================
 
-# Prometheus Metrics
-prometheus-client==0.20.0
+# Prometheus Metrics (OPTIONAL)
+# prometheus-client==0.20.0
 
-# Structured Logging
-python-json-logger==2.0.7
+# Structured Logging (OPTIONAL)
+# python-json-logger==2.0.7
 
 # ============================================================
 #                   PRODUCTION SERVER

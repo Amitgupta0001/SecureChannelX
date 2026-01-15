@@ -1,152 +1,219 @@
-// FILE: src/pages/Profile.jsx
-
-import React, { useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
-import { User, Mail, Shield, Lock, Smartphone, LogOut } from "lucide-react";
+import React, { useState, useContext, useEffect } from 'react';
+import axios from 'axios';
+import { Camera, User, Mail, Lock, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { motion } from 'framer-motion';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, token, setUser } = useContext(AuthContext);
 
-  const [editing, setEditing] = useState(false);
-  const [username, setUsername] = useState(user?.username || "");
-  const [email, setEmail] = useState(user?.email || "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [formData, setFormData] = useState({
+    display_name: user?.display_name || '',
+    status: user?.status || 'Available',
+    phone_number: user?.phone_number || ''
+  });
 
-  const toggleEdit = () => {
-    setError("");
-    setEditing((prev) => !prev);
-  };
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
 
-  const saveChanges = async () => {
-    setError("");
-    if (!username.trim() || !email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
-      setError("Provide valid username and email.");
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        display_name: user.display_name || '',
+        status: user.status || 'Available',
+        phone_number: user.phone_number || ''
+      });
+      setAvatarPreview(user.avatar);
+    }
+  }, [user]);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Image too large (max 5MB)' });
       return;
     }
-    setSaving(true);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result);
+    reader.readAsDataURL(file);
+
+    // Upload immediately
+    const data = new FormData();
+    data.append('avatar', file);
+
+    setLoading(true);
     try {
-      // TODO: call profile update API
-      // await userApi.updateProfile({ username: username.trim(), email: email.trim() });
-      setEditing(false);
-    } catch {
-      setError("Failed to update profile.");
+      const res = await axios.put('http://localhost:5050/api/users/profile/avatar', data, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      // Update local user context
+      setUser({ ...user, avatar: res.data.avatar });
+      setMessage({ type: 'success', text: 'Avatar updated!' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Failed to upload avatar' });
+      // Revert preview
+      setAvatarPreview(user?.avatar);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      // Assume endpoint exists -> Update /api/users/profile
+      // If not, we might need to create it, but usually basic profile update is standard.
+      // Let's use the standard update endpoint
+      const res = await axios.put('http://localhost:5050/api/users/profile', formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setUser({ ...user, ...res.data.user });
+      setMessage({ type: 'success', text: 'Profile updated successfully!' });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to update profile' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) return <div className="p-8 text-center text-gray-400">Loading...</div>;
+
   return (
-    <div className="min-h-screen w-full bg-[#0D1117] text-white px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Profile</h1>
-        <p className="text-gray-400">Manage your personal information</p>
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-[#111827] border border-[#1f2937] rounded-xl p-6 max-w-xl mx-auto shadow-xl"
-      >
-        <div className="flex flex-col items-center">
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-3xl font-bold shadow-lg">
-            {user?.username?.[0]?.toUpperCase() || "U"}
-          </div>
-
-          <button
-            onClick={toggleEdit}
-            className="mt-4 px-4 py-1 bg-blue-600 rounded-lg text-sm hover:bg-blue-700 transition"
-          >
-            {editing ? "Cancel" : "Edit Profile"}
-          </button>
-        </div>
-
-        <div className="mt-8 space-y-5">
-          {error && (
-            <div className="p-2 text-sm rounded bg-red-600/20 border border-red-600/30 text-red-300">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="text-sm mb-1 flex items-center gap-2">
-              <User size={16} /> Username
-            </label>
-            <input
-              type="text"
-              className="w-full bg-[#0D1117] border border-[#1f2937] rounded-lg px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={!editing}
-              autoComplete="nickname"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm mb-1 flex items-center gap-2">
-              <Mail size={16} /> Email
-            </label>
-            <input
-              type="email"
-              className="w-full bg-[#0D1117] border border-[#1f2937] rounded-lg px-4 py-2 focus:ring-1 focus:ring-blue-500 outline-none"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={!editing}
-              autoComplete="email"
-            />
-          </div>
-        </div>
-
-        {editing && (
-          <button
-            onClick={saveChanges}
-            disabled={saving}
-            className="w-full mt-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition active:scale-95 disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
-        )}
-      </motion.div>
-
-      <div className="max-w-xl mx-auto mt-12 space-y-6">
-        <Link to="/security" className="block bg-[#111827] border border-[#1f2937] rounded-xl p-5 hover:bg-[#1f2937] transition">
-          <div className="flex items-center gap-3">
-            <Shield size={22} className="text-blue-400" />
-            <div>
-              <h3 className="font-semibold text-lg">Security Center</h3>
-              <p className="text-gray-400 text-sm">2FA, devices, sessions</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/devices" className="block bg-[#111827] border border-[#1f2937] rounded-xl p-5 hover:bg-[#1f2937] transition">
-          <div className="flex items-center gap-3">
-            <Smartphone size={22} className="text-green-400" />
-            <div>
-              <h3 className="font-semibold text-lg">Logged-in Devices</h3>
-              <p className="text-gray-400 text-sm">Manage active devices</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link to="/change-password" className="block bg-[#111827] border border-[#1f2937] rounded-xl p-5 hover:bg-[#1f2937] transition">
-          <div className="flex items-center gap-3">
-            <Lock size={22} className="text-red-400" />
-            <div>
-              <h3 className="font-semibold text-lg">Change Password</h3>
-              <p className="text-gray-400 text-sm">Update credentials</p>
-            </div>
-          </div>
-        </Link>
-
-        <button
-          onClick={logout}
-          className="w-full py-3 mt-4 bg-red-600 hover:bg-red-700 rounded-xl font-semibold flex items-center justify-center gap-2"
+    <div className="min-h-screen bg-[#0b141a] text-[#e9edef] p-4 md:p-8">
+      <div className="max-w-2xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#202c33] rounded-2xl p-6 md:p-10 shadow-xl border border-[#2a3942]"
         >
-          <LogOut size={20} /> Log Out
-        </button>
+          <h1 className="text-2xl font-bold mb-8 flex items-center gap-3">
+            <User className="text-[#00a884]" />
+            Profile Settings
+          </h1>
+
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center mb-10">
+            <div className="relative group cursor-pointer">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#00a884] bg-gray-700">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-gray-400">
+                    {user.username[0].toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera className="w-8 h-8 text-white" />
+              </div>
+
+              <input
+                type="file"
+                accept="image/*"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={handleAvatarChange}
+              />
+            </div>
+            <p className="mt-3 text-[#8696a0] text-sm">Click to change profile photo</p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSave} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[#8696a0] text-sm font-medium mb-2">Display Name</label>
+                <input
+                  type="text"
+                  value={formData.display_name}
+                  onChange={e => setFormData({ ...formData, display_name: e.target.value })}
+                  className="w-full bg-[#2a3942] border border-[#2a3942] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00a884] transition-colors"
+                  placeholder="Your Name"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8696a0] text-sm font-medium mb-2">Status</label>
+                <input
+                  type="text"
+                  value={formData.status}
+                  onChange={e => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full bg-[#2a3942] border border-[#2a3942] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00a884] transition-colors"
+                  placeholder="Available"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[#8696a0] text-sm font-medium mb-2">Phone Number</label>
+              <input
+                type="tel"
+                value={formData.phone_number}
+                onChange={e => setFormData({ ...formData, phone_number: e.target.value })}
+                className="w-full bg-[#2a3942] border border-[#2a3942] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00a884] transition-colors"
+                placeholder="+1 234 567 8900"
+              />
+            </div>
+
+            {/* Read-only fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 opacity-60">
+              <div>
+                <label className="block text-[#8696a0] text-sm font-medium mb-2">Username</label>
+                <div className="w-full bg-[#2a3942]/50 border border-[#2a3942] rounded-lg px-4 py-3 text-gray-400 flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  {user.username}
+                </div>
+              </div>
+              <div>
+                <label className="block text-[#8696a0] text-sm font-medium mb-2">Email</label>
+                <div className="w-full bg-[#2a3942]/50 border border-[#2a3942] rounded-lg px-4 py-3 text-gray-400 flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  {user.email}
+                </div>
+              </div>
+            </div>
+
+            {/* Status Message */}
+            {message && (
+              <div className={`p-4 rounded-lg flex items-center gap-2 ${message.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                {message.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                {message.text}
+              </div>
+            )}
+
+            <div className="pt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="mr-4 px-6 py-3 text-[#8696a0] hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] font-bold py-3 px-8 rounded-full transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </motion.div>
       </div>
     </div>
   );
